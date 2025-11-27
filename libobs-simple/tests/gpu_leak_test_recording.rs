@@ -1,4 +1,5 @@
-#![cfg(feature = "window-list")]
+#![cfg(all(target_family = "windows", feature="window-list"))]
+
 mod common;
 
 use std::{path::PathBuf, process::Command, time::Duration};

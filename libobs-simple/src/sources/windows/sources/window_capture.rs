@@ -1,16 +1,14 @@
-use super::{ObsWindowCaptureMethod, ObsWindowPriority};
-use crate::define_object_manager;
-use libobs_simple_macro::obs_object_impl;
 #[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
 use libobs_wrapper::{
     data::{ObsObjectBuilder, ObsObjectUpdater},
     scenes::ObsSceneRef,
     sources::{ObsSourceBuilder, ObsSourceRef},
-    unsafe_send::Sendable,
     utils::ObsError,
 };
 use num_traits::ToPrimitive;
+use libobs_simple_macro::obs_object_impl;
+use super::{ObsWindowCaptureMethod, ObsWindowPriority};
 
 define_object_manager!(
     /// Provides an easy-to-use builder for the window capture source.
@@ -66,12 +64,17 @@ define_object_manager!(
     capture_method: Option<ObsWindowCaptureMethod>,
 });
 
-#[obs_object_impl]
 #[cfg(feature = "window-list")]
+#[libobs_source_macro::obs_object_impl]
 impl WindowCaptureSource {
     /// Gets a list of windows that can be captured by this source.
-    pub fn get_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<Sendable<WindowInfo>>> {
-        Ok(get_all_windows(mode)?.into_iter().map(Sendable).collect())
+    pub fn get_windows(
+        mode: WindowSearchMode,
+    ) -> anyhow::Result<Vec<libobs_wrapper::unsafe_send::Sendable<WindowInfo>>> {
+        Ok(get_all_windows(mode)?
+            .into_iter()
+            .map(libobs_wrapper::unsafe_send::Sendable)
+            .collect())
     }
 
     /// Sets the window to capture.
@@ -83,7 +86,7 @@ impl WindowCaptureSource {
     /// # Returns
     ///
     /// The updated `WindowCaptureSourceBuilder` instance.
-    pub fn set_window(self, window: &Sendable<WindowInfo>) -> Self {
+    pub fn set_window(self, window: &libobs_wrapper::unsafe_send::Sendable<WindowInfo>) -> Self {
         self.set_window_raw(window.0.obs_id.as_str())
     }
 }
