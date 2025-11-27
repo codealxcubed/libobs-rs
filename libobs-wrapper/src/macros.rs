@@ -80,3 +80,22 @@ macro_rules! impl_obs_drop {
         }
     };
 }
+
+#[macro_export]
+macro_rules! impl_eq_of_ptr {
+    ($struct: ty, $ptr: ident) => {
+        impl PartialEq for $struct {
+            fn eq(&self, other: &Self) -> bool {
+                self.$ptr.0 == other.$ptr.0
+            }
+        }
+
+        impl Eq for $struct {}
+
+        impl Hash for $struct {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.$ptr.0.hash(state);
+            }
+        }
+    };
+}

@@ -1,9 +1,10 @@
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
+use std::thread::JoinHandle;
+use std::time::Duration;
 
 #[cfg(target_os = "linux")]
 use libobs_simple::sources::linux::LinuxGeneralScreenCapture;
-use libobs_wrapper::graphics::Vec2;
 #[cfg(target_os = "linux")]
 use libobs_wrapper::utils::NixDisplay;
 
@@ -37,12 +38,26 @@ use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
 
-#[derive(Clone)]
+struct SignalThreadGuard {
+    should_exit: Arc<AtomicBool>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl Drop for SignalThreadGuard {
+    fn drop(&mut self) {
+        self.should_exit.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.handle.take() {
+            handle.join().unwrap();
+        }
+    }
+}
+
 struct ObsInner {
     context: ObsContext,
     display: ObsDisplayRef,
     #[cfg_attr(not(windows), allow(dead_code))]
     source: ObsSourceRef,
+    _guard: SignalThreadGuard,
 }
 
 impl ObsInner {
@@ -144,8 +159,7 @@ impl ObsInner {
         .unwrap()
         .add_to_scene(&mut scene)?;
 
-        scene.set_source_position(&monitor_src, Vec2::new(0.0, 0.0))?;
-        scene.set_source_scale(&monitor_src, Vec2::new(1.0, 1.0))?;
+        scene.fit_source_to_screen(&monitor_src)?;
 
         #[cfg(windows)]
         let mut _apex_source = None;
@@ -202,13 +216,19 @@ impl ObsInner {
 
         // Example for signals and events with libobs
         let tmp = monitor_src.clone();
-        std::thread::spawn(move || {
+        let should_exit = Arc::new(AtomicBool::new(false));
+        let thread_exit = should_exit.clone();
+        let handle = std::thread::spawn(move || {
             let signal_manager = tmp.signal_manager();
             let mut x = signal_manager.on_update().unwrap();
 
             println!("Listening for updates");
-            while x.blocking_recv().is_ok() {
-                println!("Monitor Source has been updated!");
+            while !thread_exit.load(Ordering::Relaxed) {
+                if x.try_recv().is_ok() {
+                    println!("Monitor Source has been updated!");
+                }
+
+                std::thread::sleep(Duration::from_millis(100));
             }
         });
 
@@ -219,6 +239,10 @@ impl ObsInner {
             #[cfg_attr(not(target_os = "linux"), allow(unused_unsafe))]
             display,
             source: monitor_src,
+            _guard: SignalThreadGuard {
+                should_exit,
+                handle: Some(handle),
+            },
         })
     }
 }
@@ -286,12 +310,12 @@ impl ApplicationHandler for App {
                         (width, height)
                     };
 
-                if let Some(obs) = self.obs.write().unwrap().clone() {
+                if let Some(obs) = self.obs.write().unwrap().as_ref() {
                     let _ = obs.display.set_size(display_width, display_height);
                 }
             }
             WindowEvent::Moved(_) => {
-                if let Some(obs) = self.obs.write().unwrap().clone() {
+                if let Some(obs) = self.obs.write().unwrap().as_ref() {
                     let _ = obs.display.update_color_space();
                 }
             }
@@ -304,11 +328,12 @@ impl ApplicationHandler for App {
                     #[cfg(windows)]
                     // Technically we could also switch monitors on X11, but we would like to keep it simple for now...
                     MouseButton::Left => {
-                        let inner = self.obs.write().unwrap().clone();
+                        let mut inner = self.obs.write().unwrap();
+                        let inner = inner.as_mut();
                         if let Some(inner) = inner {
                             let monitor_index = self.monitor_index.clone();
 
-                            let mut source = inner.source;
+                            let source = &mut inner.source;
                             let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();
 
                             let monitor_index = monitor_index
@@ -325,7 +350,8 @@ impl ApplicationHandler for App {
                         }
                     }
                     MouseButton::Right => {
-                        let inner = self.obs.write().unwrap().clone();
+                        let inner = self.obs.write().unwrap();
+                        let inner = inner.as_ref();
                         if let Some(inner) = inner {
                             let display = inner.display.clone();
                             let pos = display.get_pos().unwrap();
@@ -339,9 +365,10 @@ impl ApplicationHandler for App {
                         }
                     }
                     MouseButton::Middle => {
-                        let inner = self.obs.write().unwrap().clone();
+                        let mut inner = self.obs.write().unwrap();
+                        let inner = inner.as_mut();
                         if let Some(inner) = inner {
-                            let mut display = inner.display;
+                            let display = &mut inner.display;
                             let visible = display.is_visible().unwrap();
                             if visible {
                                 println!("Hiding display");
