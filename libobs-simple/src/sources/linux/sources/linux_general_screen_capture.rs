@@ -6,7 +6,7 @@ use libobs_wrapper::{
 };
 use std::env;
 
-use crate::linux::{
+use crate::sources::linux::{
     sources::x11_capture::X11CaptureSourceBuilder, PipeWireDesktopCaptureSourceBuilder,
 };
 

@@ -296,15 +296,22 @@ impl ObsSceneRef {
             libobs::obs_sceneitem_get_bounds_crop(scene_item_ptr)
         })?;
 
+        #[cfg(windows)]
+        let bounds_type = ObsBounds::ScaleInner
+            .to_i32()
+            .expect("Failed to convert ObsBounds to i32");
+        #[cfg(not(windows))]
+        let bounds_type = ObsBounds::ScaleInner
+            .to_u32()
+            .expect("Failed to convert ObsBounds to u64");
+
         let item_info = obs_transform_info {
             pos: Vec2::new(0.0, 0.0).into(),
             scale: Vec2::new(1.0, 1.0).into(),
             alignment: libobs::OBS_ALIGN_LEFT | libobs::OBS_ALIGN_TOP,
             rot: 0.0,
             bounds: Vec2::new(ovi.0.base_width as f32, ovi.0.base_height as f32).into(),
-            bounds_type: ObsBounds::ScaleInner
-                .to_i32()
-                .expect("Failed to convert ObsBounds to i32"),
+            bounds_type,
             bounds_alignment: libobs::OBS_ALIGN_CENTER,
             crop_to_bounds: bounds_crop,
         };

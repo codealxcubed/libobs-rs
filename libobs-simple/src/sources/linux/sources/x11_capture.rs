@@ -3,7 +3,7 @@ use libobs_wrapper::{
     sources::{ObsSourceBuilder, ObsSourceRef},
 };
 
-use crate::macro_helper::define_object_manager;
+use crate::sources::macro_helper::define_object_manager;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Describes the X11 capture server type

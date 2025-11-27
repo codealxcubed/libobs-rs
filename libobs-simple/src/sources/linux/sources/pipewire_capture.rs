@@ -1,4 +1,4 @@
-use libobs_source_macro::{obs_object_builder, obs_object_updater};
+use libobs_simple_macro::{obs_object_builder, obs_object_updater};
 use libobs_wrapper::{
     data::ObsDataGetters,
     run_with_obs,
@@ -7,7 +7,7 @@ use libobs_wrapper::{
     utils::{traits::ObsUpdatable, ObsError},
 };
 
-use crate::macro_helper::define_object_manager;
+use crate::sources::macro_helper::define_object_manager;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// PipeWire source type

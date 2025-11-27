@@ -4,7 +4,7 @@ use libobs_wrapper::{
 };
 use num_derive::{FromPrimitive, ToPrimitive};
 
-use crate::macro_helper::define_object_manager;
+use crate::sources::macro_helper::define_object_manager;
 
 #[repr(i64)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]

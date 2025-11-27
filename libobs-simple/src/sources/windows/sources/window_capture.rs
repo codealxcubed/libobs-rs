@@ -1,3 +1,5 @@
+use super::{ObsWindowCaptureMethod, ObsWindowPriority};
+use libobs_simple_macro::obs_object_impl;
 #[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
 use libobs_wrapper::{
@@ -7,8 +9,6 @@ use libobs_wrapper::{
     utils::ObsError,
 };
 use num_traits::ToPrimitive;
-use libobs_simple_macro::obs_object_impl;
-use super::{ObsWindowCaptureMethod, ObsWindowPriority};
 
 define_object_manager!(
     /// Provides an easy-to-use builder for the window capture source.
@@ -65,7 +65,7 @@ define_object_manager!(
 });
 
 #[cfg(feature = "window-list")]
-#[libobs_source_macro::obs_object_impl]
+#[libobs_simple_macro::obs_object_impl]
 impl WindowCaptureSource {
     /// Gets a list of windows that can be captured by this source.
     pub fn get_windows(

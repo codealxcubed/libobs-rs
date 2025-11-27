@@ -6,7 +6,7 @@ use libobs_wrapper::{
 };
 
 use super::DisplayServerType;
-use crate::linux::{
+use crate::sources::linux::{
     sources::xcomposite_input::XCompositeInputSourceBuilder, PipeWireWindowCaptureSourceBuilder,
 };
 

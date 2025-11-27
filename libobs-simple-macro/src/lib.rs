@@ -150,7 +150,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// ```
 /// use libobs_wrapper::data::StringEnum;
-/// use libobs_source_macro::obs_object_builder;
+/// use libobs_simple_macro::obs_object_builder;
 /// use num_derive::{FromPrimitive, ToPrimitive};
 ///
 /// #[repr(i32)]

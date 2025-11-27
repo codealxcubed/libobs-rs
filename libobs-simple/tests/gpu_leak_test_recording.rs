@@ -1,4 +1,4 @@
-#![cfg(all(target_family = "windows", feature="window-list"))]
+#![cfg(all(target_family = "windows", feature = "window-list"))]
 
 mod common;
 

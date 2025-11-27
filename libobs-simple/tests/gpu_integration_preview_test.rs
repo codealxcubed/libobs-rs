@@ -4,6 +4,7 @@ use std::sync::{Arc, RwLock};
 use libobs_simple::sources::linux::LinuxGeneralScreenCapture;
 #[cfg(target_os = "linux")]
 use libobs_simple::sources::linux::PipeWireSourceExtTrait;
+use libobs_wrapper::graphics::Vec2;
 #[cfg(target_os = "linux")]
 use libobs_wrapper::utils::NixDisplay;
 
@@ -155,8 +156,8 @@ impl ObsInner {
             .add_to_scene(&mut scene)?
         };
 
-        scene.set_source_position(&monitor_src, libobs_wrapper::Vec2::new(0.0, 0.0))?;
-        scene.set_source_scale(&monitor_src, libobs_wrapper::Vec2::new(1.0, 1.0))?;
+        scene.set_source_position(&monitor_src, Vec2::new(0.0, 0.0))?;
+        scene.set_source_scale(&monitor_src, Vec2::new(1.0, 1.0))?;
 
         #[cfg(windows)]
         let mut _apex_source = None;
@@ -329,19 +330,6 @@ impl ApplicationHandler for App {
                 }
             }
             _ => (),
-        }
-    }
-
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let elapsed = self.initialized_at.elapsed();
-        if elapsed.as_secs() >= 1 {
-            if let Some(display) = self.display.write().unwrap().clone() {
-                let ctx = self.context.clone();
-
-                ctx.write().unwrap().remove_display(&display).unwrap();
-            }
-
-            event_loop.exit();
         }
     }
 }

@@ -14,7 +14,6 @@ pub use libobs_wrapper as wrapper;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
-pub mod encoders;
 mod macro_helper;
 
 pub use libobs_wrapper::{data::ObsObjectUpdater, sources::ObsSourceBuilder};
