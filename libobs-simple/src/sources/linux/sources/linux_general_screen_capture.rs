@@ -76,7 +76,7 @@ impl DisplayServerType {
 /// # Example
 ///
 /// ```no_run
-/// use libobs_sources::linux::LinuxGeneralScreenCapture;
+/// use libobs_simple::sources::linux::LinuxGeneralScreenCapture;
 /// use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {

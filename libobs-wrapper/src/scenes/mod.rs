@@ -39,6 +39,37 @@ impl_obs_drop!(_SceneDropGuard, (scene), move || unsafe {
     libobs::obs_scene_release(scene);
 });
 
+struct ObsTransformInfo(pub obs_transform_info);
+impl Debug for ObsTransformInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObsTransformInfo")
+            .field("pos", &Vec2::from(self.0.pos))
+            .field("scale", &Vec2::from(self.0.scale))
+            .field("alignment", &self.0.alignment)
+            .field("rot", &self.0.rot)
+            .field("bounds", &Vec2::from(self.0.bounds))
+            .field("bounds_type", &self.0.bounds_type)
+            .field("bounds_alignment", &self.0.bounds_alignment)
+            .field("crop_to_bounds", &self.0.crop_to_bounds)
+            .finish()
+    }
+}
+
+impl Clone for ObsTransformInfo {
+    fn clone(&self) -> Self {
+        ObsTransformInfo(obs_transform_info {
+            pos: self.0.pos,
+            scale: self.0.scale,
+            alignment: self.0.alignment,
+            rot: self.0.rot,
+            bounds: self.0.bounds,
+            bounds_type: self.0.bounds_type,
+            bounds_alignment: self.0.bounds_alignment,
+            crop_to_bounds: self.0.crop_to_bounds,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Getters)]
 #[skip_new]
 pub struct ObsSceneRef {
@@ -305,7 +336,7 @@ impl ObsSceneRef {
             .to_u32()
             .expect("Failed to convert ObsBounds to u64");
 
-        let item_info = obs_transform_info {
+        let item_info = ObsTransformInfo(obs_transform_info {
             pos: Vec2::new(0.0, 0.0).into(),
             scale: Vec2::new(1.0, 1.0).into(),
             alignment: libobs::OBS_ALIGN_LEFT | libobs::OBS_ALIGN_TOP,
@@ -314,11 +345,11 @@ impl ObsSceneRef {
             bounds_type,
             bounds_alignment: libobs::OBS_ALIGN_CENTER,
             crop_to_bounds: bounds_crop,
-        };
+        });
 
         let item_info = Sendable(item_info);
         run_with_obs!(self.runtime, (scene_item_ptr, item_info), move || unsafe {
-            libobs::obs_sceneitem_set_info2(scene_item_ptr, &item_info);
+            libobs::obs_sceneitem_set_info2(scene_item_ptr, &item_info.0);
         })?;
 
         Ok(true)

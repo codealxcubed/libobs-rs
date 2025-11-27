@@ -173,8 +173,8 @@ impl ObsInner {
                 .set_window(apex)
                 .add_to_scene(&mut scene)?;
 
-            scene.set_source_position(&source, libobs_wrapper::Vec2::new(0.0, 0.0))?;
-            scene.set_source_scale(&source, libobs_wrapper::Vec2::new(1.0, 1.0))?;
+            scene.set_source_position(&source, Vec2::new(0.0, 0.0))?;
+            scene.set_source_scale(&source, Vec2::new(1.0, 1.0))?;
             _apex_source = Some(source);
         } else {
             println!("No Apex window found for game capture");

@@ -1,5 +1,6 @@
+use crate::define_object_manager;
+
 use super::{ObsWindowCaptureMethod, ObsWindowPriority};
-use libobs_simple_macro::obs_object_impl;
 #[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
 use libobs_wrapper::{

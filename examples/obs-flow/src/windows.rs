@@ -7,7 +7,6 @@ use libobs_simple::sources::{
     windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod},
 };
 use libobs_wrapper::{
-    Vec2,
     context::ObsContext,
     data::properties::{ObsProperty, ObsPropertyObject, types::ObsListItemValue},
     encoders::{ObsAudioEncoderType, ObsVideoEncoderType},
@@ -86,8 +85,7 @@ pub fn main() -> anyhow::Result<()> {
     let scale = scene.get_source_scale(&source)?;
     println!("Scale: {:?}", scale);
 
-    scene.set_source_position(&source, Vec2::new(5.0, 5.0))?;
-    scene.set_source_scale(&source, Vec2::new(0.5, 0.5))?;
+    scene.fit_source_to_screen(&source)?;
 
     output.start()?;
 
