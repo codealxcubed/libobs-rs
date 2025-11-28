@@ -12,8 +12,8 @@ use crate::common::{assert_not_black, initialize_obs};
 #[test]
 #[ignore]
 pub fn record() {
-    let rec_file = ObsPath::from_relative("game_capture.mp4").build();
-    let path_out = PathBuf::from(rec_file.to_string());
+    let rec_file = ObsPath::from_relative("game_capture.mp4");
+    let path_out: PathBuf = rec_file.clone().into();
 
     let (mut context, mut output) = initialize_obs(rec_file);
     let mut scene = context.scene("main").unwrap();

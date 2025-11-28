@@ -12,8 +12,8 @@ use common::{assert_not_black, find_notepad, initialize_obs};
 /// Stage 6: Initialize OBS, create output with encoders, scene, add source, and record
 #[test]
 pub fn test_recording() {
-    let rec_file = ObsPath::from_relative("leak_test_recording.mp4").build();
-    let path_out = PathBuf::from(rec_file.to_string());
+    let rec_file = ObsPath::from_relative("leak_test_recording.mp4");
+    let path_out: PathBuf = rec_file.clone().into();
 
     let mut window = find_notepad();
     let mut cmd = None;

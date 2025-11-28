@@ -24,8 +24,8 @@ use libobs_wrapper::{
 #[test]
 // For this test to work, notepad must be open
 pub fn record() {
-    let rec_file = ObsPath::from_relative("window_capture.mp4").build();
-    let path_out = PathBuf::from(rec_file.to_string());
+    let rec_file = ObsPath::from_relative("window_capture.mp4");
+    let path_out: PathBuf = rec_file.clone().into();
 
     let mut window = find_notepad();
     let mut cmd = None;

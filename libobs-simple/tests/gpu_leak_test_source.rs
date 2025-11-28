@@ -14,7 +14,7 @@ use crate::common::find_notepad;
 /// Stage 5: Initialize OBS, create output with encoders, scene, and add window capture source
 #[test]
 pub fn test_source() {
-    let rec_file = ObsPath::from_relative("leak_test_source.mp4").build();
+    let rec_file = ObsPath::from_relative("leak_test_source.mp4");
 
     let mut window = find_notepad();
     let mut cmd = None;

@@ -25,8 +25,8 @@ const ENABLE_DXGI_TEST: bool = 1 == 0; // I know this is false, this is just so 
 
 #[test]
 pub fn record() {
-    let rec_file = ObsPath::from_relative("monitor_capture.mp4").build();
-    let path_out = PathBuf::from(rec_file.to_string());
+    let rec_file = ObsPath::from_relative("monitor_capture.mp4");
+    let path_out: PathBuf = rec_file.clone().into();
 
     let (mut context, mut output) = initialize_obs(rec_file);
     let mut scene = context.scene("main").unwrap();
