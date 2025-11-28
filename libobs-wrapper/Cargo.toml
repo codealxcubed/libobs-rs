@@ -1,11 +1,11 @@
 [package]
 name = "libobs-wrapper"
 description = "A safe wrapper around libobs"
-version = "5.3.0+32.0.2"
-repository = "https://github.com/joshprk/libobs-rs"
-documentation = "https://joshprk.github.io/libobs-rs/libobs_wrapper/"
+version = "5.3.1+32.0.2"
+repository = "https://github.com/libobs-rs/libobs-rs"
+documentation = "https://sshcrack.github.io/libobs-docs/libobs_wrapper/"
 readme = "README.md"
-authors = ["sshcrack"]
+authors = ["Hendrik Lind <hendrik@sshcrack.me>"]
 categories = [
     "multimedia::video",
     "multimedia::audio",
