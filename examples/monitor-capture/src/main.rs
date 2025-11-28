@@ -1,4 +1,6 @@
 use libobs_simple::output::simple::ObsContextSimpleExt;
+#[cfg(target_os = "linux")]
+use libobs_wrapper::logger::ObsLogger;
 use libobs_wrapper::utils::StartupInfo;
 use libobs_wrapper::{context::ObsContext, utils::ObsPath};
 
