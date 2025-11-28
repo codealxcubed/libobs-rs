@@ -5,7 +5,9 @@ use libobs::{obs_scene_item, obs_scene_t, obs_source_t};
 
 use crate::{
     data::{immutable::ImmutableObsData, ObsData},
-    impl_eq_of_ptr, impl_obs_drop, impl_signal_manager, run_with_obs,
+    impl_obs_drop, impl_signal_manager,
+    macros::impl_eq_of_ptr,
+    run_with_obs,
     runtime::ObsRuntime,
     unsafe_send::{Sendable, SendableComp},
     utils::{traits::ObsUpdatable, ObsError, ObsString},

@@ -10,7 +10,7 @@ use getters0::Getters;
 use libobs::{obs_scene_item, obs_scene_t, obs_source_t, obs_transform_info, obs_video_info};
 
 use crate::enums::ObsBoundsType;
-use crate::impl_eq_of_ptr;
+use crate::macros::impl_eq_of_ptr;
 use crate::unsafe_send::SendableComp;
 use crate::{
     graphics::Vec2,

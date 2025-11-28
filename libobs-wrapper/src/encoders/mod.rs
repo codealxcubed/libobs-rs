@@ -1,6 +1,6 @@
 use crate::{
     context::ObsContext,
-    enums::ObsEncoderType,
+    enums::{ObsEncoderType, OsEnumType},
     run_with_obs,
     runtime::ObsRuntime,
     utils::{ObsError, ENCODER_HIDE_FLAGS},
@@ -28,7 +28,7 @@ fn get_encoders_raw(
     encoder_type: ObsEncoderType,
     runtime: &ObsRuntime,
 ) -> Result<Vec<String>, ObsError> {
-    let type_primitive = encoder_type as std::os::raw::c_int;
+    let type_primitive = encoder_type as OsEnumType;
 
     run_with_obs!(runtime, move || {
         let mut n = 0;

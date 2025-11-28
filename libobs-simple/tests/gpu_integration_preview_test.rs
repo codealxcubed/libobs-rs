@@ -161,18 +161,6 @@ impl ObsInner {
         let data: ObsDisplayCreationData =
             ObsDisplayCreationData::new(obs_handle, 0, 0, width, height);
 
-        // Example for signals and events with libobs
-        let tmp = monitor_src.clone();
-        std::thread::spawn(move || {
-            let signal_manager = tmp.signal_manager();
-            let mut x = signal_manager.on_update().unwrap();
-
-            println!("Listening for updates");
-            while x.blocking_recv().is_ok() {
-                println!("Monitor Source has been updated!");
-            }
-        });
-
         #[cfg_attr(not(target_os = "linux"), allow(unused_unsafe))]
         let display = unsafe { context.display(data)? };
         Ok(Self {

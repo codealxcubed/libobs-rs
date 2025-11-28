@@ -1,10 +1,13 @@
 use std::fmt::Debug;
 
 use libobs::obs_transform_info;
-use num_traits::FromPrimitive;
 
 use crate::{
-    enums::ObsBoundsType, graphics::Vec2, scenes::ObsSceneRef, sources::ObsSourceRef,
+    enums::{ObsBoundsType, OsEnumType},
+    graphics::Vec2,
+    macros::enum_from_number,
+    scenes::ObsSceneRef,
+    sources::ObsSourceRef,
     utils::ObsError,
 };
 
@@ -62,10 +65,7 @@ impl ObsTransformInfo {
     }
 
     pub fn get_bounds_type(&self) -> ObsBoundsType {
-        #[cfg(windows)]
-        return ObsBoundsType::from_i32(self.0.bounds_type).unwrap();
-        #[cfg(not(windows))]
-        return ObsBoundsType::from_u32(self.0.bounds_type).unwrap();
+        enum_from_number!(ObsBoundsType, self.0.bounds_type).unwrap()
     }
 
     pub fn get_bounds_alignment(&self) -> u32 {
@@ -161,7 +161,7 @@ impl ObsTransformInfoBuilder {
             .bounds_type
             .unwrap_or_else(|| current.get_bounds_type());
 
-        let bounds_type = bounds_type as std::os::raw::c_int;
+        let bounds_type = bounds_type as OsEnumType;
         Ok(ObsTransformInfo(obs_transform_info {
             pos: self.pos.unwrap_or_else(|| current.get_pos()).into(),
             scale: self.scale.unwrap_or_else(|| current.get_scale()).into(),
@@ -180,8 +180,7 @@ impl ObsTransformInfoBuilder {
 
     /// Builds the transform info with only the values set in the builder. Unset values will be defaulted.
     pub fn build(self, base_width: u32, base_height: u32) -> ObsTransformInfo {
-        let bounds_type =
-            self.bounds_type.unwrap_or(ObsBoundsType::ScaleInner) as std::os::raw::c_int;
+        let bounds_type = self.bounds_type.unwrap_or(ObsBoundsType::ScaleInner) as OsEnumType;
 
         ObsTransformInfo(obs_transform_info {
             pos: self.pos.unwrap_or_else(|| Vec2::new(0.0, 0.0)).into(),

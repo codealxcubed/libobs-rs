@@ -1,6 +1,6 @@
 use libobs::gs_init_data;
 
-use crate::display::ObsWindowHandle;
+use crate::{display::ObsWindowHandle, enums::OsEnumType};
 
 use super::{GsColorFormat, GsZstencilFormat};
 
@@ -93,8 +93,8 @@ impl ObsDisplayCreationData {
         CloneableGsInitData(gs_init_data {
             cx: self.width,
             cy: self.height,
-            format: self.format as std::os::raw::c_int,
-            zsformat: self.zsformat as std::os::raw::c_int,
+            format: self.format as OsEnumType,
+            zsformat: self.zsformat as OsEnumType,
 
             window: window_override
                 .map(|s| s.window.0)

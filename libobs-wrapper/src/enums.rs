@@ -4,9 +4,9 @@ use std::fmt::Display;
 use num_derive::{FromPrimitive, ToPrimitive};
 
 #[cfg(target_os = "windows")]
-pub(crate) type OsEnumType = i32;
+pub(crate) type OsEnumType = std::os::raw::c_int;
 #[cfg(not(target_os = "windows"))]
-pub(crate) type OsEnumType = u32;
+pub(crate) type OsEnumType = std::os::raw::c_uint;
 
 #[cfg_attr(target_os = "windows", repr(i32))]
 #[cfg_attr(not(target_os = "windows"), repr(u32))]

@@ -81,7 +81,6 @@ macro_rules! impl_obs_drop {
     };
 }
 
-#[macro_export]
 macro_rules! impl_eq_of_ptr {
     ($struct: ty, $ptr: ident) => {
         impl PartialEq for $struct {
@@ -99,3 +98,22 @@ macro_rules! impl_eq_of_ptr {
         }
     };
 }
+
+#[cfg(windows)]
+macro_rules! enum_from_number {
+    ($var: ident, $numb: expr) => {{
+        use num_traits::FromPrimitive;
+        $var::from_i32($numb)
+    }};
+}
+
+#[cfg(not(windows))]
+macro_rules! enum_from_number {
+    ($var: ident, $numb: expr) => {{
+        use num_traits::FromPrimitive;
+        $var::from_u32($numb)
+    }};
+}
+
+pub(crate) use enum_from_number;
+pub(crate) use impl_eq_of_ptr;
