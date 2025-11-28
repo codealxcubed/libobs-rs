@@ -39,7 +39,7 @@ use libobs_wrapper::{
     context::ObsContext,
     data::{output::ObsOutputRef, ObsData},
     encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType},
-    utils::{AudioEncoderInfo, ObsError, OutputInfo, VideoEncoderInfo},
+    utils::{AudioEncoderInfo, ObsError, ObsString, OutputInfo, VideoEncoderInfo},
 };
 use std::io::Write;
 use std::path::PathBuf;
@@ -161,6 +161,7 @@ pub enum OutputFormat {
 /// Unified output settings
 #[derive(Debug)]
 pub struct OutputSettings {
+    name: ObsString,
     video_bitrate: u32,
     audio_bitrate: u32,
     video_encoder: VideoEncoder,
@@ -241,18 +242,30 @@ pub struct SimpleOutputBuilder {
 }
 
 pub trait ObsContextSimpleExt {
-    fn simple_output_builder<K: Into<PathBuf>>(&self, path: K) -> SimpleOutputBuilder;
+    fn simple_output_builder<K: Into<PathBuf>, T: Into<ObsString>>(
+        &self,
+        name: T,
+        path: K,
+    ) -> SimpleOutputBuilder;
 }
 
 impl ObsContextSimpleExt for ObsContext {
-    fn simple_output_builder<K: Into<PathBuf>>(&self, path: K) -> SimpleOutputBuilder {
-        SimpleOutputBuilder::new(self.clone(), path)
+    fn simple_output_builder<K: Into<PathBuf>, T: Into<ObsString>>(
+        &self,
+        name: T,
+        path: K,
+    ) -> SimpleOutputBuilder {
+        SimpleOutputBuilder::new(self.clone(), name, path)
     }
 }
 
 impl SimpleOutputBuilder {
     /// Creates a new SimpleOutputBuilder with default settings.
-    pub fn new<K: Into<PathBuf>>(context: ObsContext, path: K) -> Self {
+    pub fn new<K: Into<PathBuf>, T: Into<ObsString>>(
+        context: ObsContext,
+        name: T,
+        path: K,
+    ) -> Self {
         SimpleOutputBuilder {
             settings: OutputSettings {
                 video_bitrate: 6000,
@@ -263,6 +276,7 @@ impl SimpleOutputBuilder {
                 path: path.into(),
                 format: OutputFormat::default(),
                 custom_muxer_settings: None,
+                name: name.into(),
             },
             context,
         }
@@ -328,7 +342,12 @@ impl SimpleOutputBuilder {
         }
 
         // Create the output
-        let output_info = OutputInfo::new(output_id, "simple_output", Some(output_settings), None);
+        let output_info = OutputInfo::new(
+            output_id,
+            self.settings.name.clone(),
+            Some(output_settings),
+            None,
+        );
 
         log::trace!("Creating output with settings: {:?}", self.settings);
         std::io::stdout().flush().unwrap();
