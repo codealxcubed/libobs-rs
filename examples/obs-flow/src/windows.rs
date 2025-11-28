@@ -30,7 +30,7 @@ pub fn main() -> anyhow::Result<()> {
 
     // Add a output
     let mut output = context
-        .simple_output_builder("obs-flow-output", "obs-flow-example.mp4")
+        .simple_output_builder("obs-flow-output", ObsPath::new("obs-flow-example.mp4"))
         .build()?;
 
     // Read all the properties of source type or encoders

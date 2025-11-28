@@ -1,6 +1,6 @@
 use libobs_simple::output::simple::ObsContextSimpleExt;
-use libobs_wrapper::context::ObsContext;
 use libobs_wrapper::utils::StartupInfo;
+use libobs_wrapper::{context::ObsContext, utils::ObsPath};
 
 #[cfg(windows)]
 use libobs_simple::sources::windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater};
@@ -69,7 +69,7 @@ fn main() -> anyhow::Result<()> {
 
     // Set up output to ./recording.mp4
     let mut output = context
-        .simple_output_builder("monitor-capture-output", "monitor-capture.mp4")
+        .simple_output_builder("monitor-capture-output", ObsPath::new("record.mp4"))
         .build()?;
 
     output.start()?;

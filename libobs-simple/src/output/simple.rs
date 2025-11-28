@@ -39,10 +39,9 @@ use libobs_wrapper::{
     context::ObsContext,
     data::{output::ObsOutputRef, ObsData},
     encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType},
-    utils::{AudioEncoderInfo, ObsError, ObsString, OutputInfo, VideoEncoderInfo},
+    utils::{AudioEncoderInfo, ObsError, ObsPath, ObsString, OutputInfo, VideoEncoderInfo},
 };
 use std::io::Write;
-use std::path::PathBuf;
 
 /// Preset for x264 software encoder
 #[derive(Debug, Clone, Copy)]
@@ -167,7 +166,7 @@ pub struct OutputSettings {
     video_encoder: VideoEncoder,
     audio_encoder: AudioEncoder,
     custom_encoder_settings: Option<String>,
-    path: PathBuf,
+    path: ObsPath,
     format: OutputFormat,
     custom_muxer_settings: Option<String>,
 }
@@ -211,7 +210,7 @@ impl OutputSettings {
     }
 
     /// Sets the output path.
-    pub fn with_path<P: Into<PathBuf>>(mut self, path: P) -> Self {
+    pub fn with_path<P: Into<ObsPath>>(mut self, path: P) -> Self {
         self.path = path.into();
         self
     }
@@ -242,7 +241,7 @@ pub struct SimpleOutputBuilder {
 }
 
 pub trait ObsContextSimpleExt {
-    fn simple_output_builder<K: Into<PathBuf>, T: Into<ObsString>>(
+    fn simple_output_builder<K: Into<ObsPath>, T: Into<ObsString>>(
         &self,
         name: T,
         path: K,
@@ -250,7 +249,7 @@ pub trait ObsContextSimpleExt {
 }
 
 impl ObsContextSimpleExt for ObsContext {
-    fn simple_output_builder<K: Into<PathBuf>, T: Into<ObsString>>(
+    fn simple_output_builder<K: Into<ObsPath>, T: Into<ObsString>>(
         &self,
         name: T,
         path: K,
@@ -261,7 +260,7 @@ impl ObsContextSimpleExt for ObsContext {
 
 impl SimpleOutputBuilder {
     /// Creates a new SimpleOutputBuilder with default settings.
-    pub fn new<K: Into<PathBuf>, T: Into<ObsString>>(
+    pub fn new<K: Into<ObsPath>, T: Into<ObsString>>(
         context: ObsContext,
         name: T,
         path: K,
@@ -301,7 +300,7 @@ impl SimpleOutputBuilder {
     }
 
     /// Sets the output path.
-    pub fn path<P: Into<PathBuf>>(mut self, path: P) -> Self {
+    pub fn path<P: Into<ObsPath>>(mut self, path: P) -> Self {
         self.settings.path = path.into();
         self
     }
@@ -335,7 +334,7 @@ impl SimpleOutputBuilder {
 
         // Create output settings
         let mut output_settings = self.context.data()?;
-        output_settings.set_string("path", self.settings.path.to_string_lossy().to_string())?;
+        output_settings.set_string("path", self.settings.path.clone().build())?;
 
         if let Some(ref muxer_settings) = self.settings.custom_muxer_settings {
             output_settings.set_string("muxer_settings", muxer_settings.as_str())?;

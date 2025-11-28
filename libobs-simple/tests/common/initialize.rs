@@ -3,8 +3,7 @@ use libobs_simple::output::simple::ObsContextSimpleExt;
 use libobs_wrapper::{
     context::ObsContext,
     data::output::ObsOutputRef,
-    encoders::{ObsContextEncoders, ObsVideoEncoderType},
-    utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo},
+    utils::{ObsString, StartupInfo},
 };
 
 /// The string returned is the name of the obs output
@@ -17,12 +16,9 @@ pub fn initialize_obs<T: Into<ObsString> + Send + Sync>(rec_file: T) -> (ObsCont
     #[allow(unused_mut)]
     let mut context = ObsContext::new(StartupInfo::default()).unwrap();
 
-    // Set up output to ./recording.mp4
-    let mut output_settings = context.data().unwrap();
-    output_settings.set_string("path", rec_file).unwrap();
-
+    let rec_file: ObsString = rec_file.into();
     let mut output = context
-        .simple_output_builder("test_obs_output", rec_file.to_string())
+        .simple_output_builder("test_obs_output", rec_file)
         .build()
         .unwrap();
 
