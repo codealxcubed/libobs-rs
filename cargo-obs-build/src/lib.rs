@@ -24,6 +24,7 @@ mod download;
 mod git;
 mod lib_version;
 mod lock;
+#[cfg(target_os = "macos")]
 mod macos;
 mod metadata;
 mod util;
@@ -476,32 +477,30 @@ fn clean_up_files(
     }
 
     info!("Cleaning up unnecessary files...");
-    let mut walker = WalkDir::new(build_out).into_iter();
-    while let Some(entry) = walker.next() {
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        let path = entry.path();
-
+    let walker = WalkDir::new(build_out).into_iter().filter_entry(|entry| {
         // Skip Resources and _CodeSignature directories inside .framework bundles (needed for code signing on macOS)
         #[cfg(target_os = "macos")]
         {
+            let path = entry.path();
             let file_name = path.file_name().and_then(|f| f.to_str());
             if (file_name == Some("Resources") || file_name == Some("_CodeSignature"))
                 && path
                     .ancestors()
                     .any(|p| p.extension().and_then(|e| e.to_str()) == Some("framework"))
             {
-                // Skip this directory and all its contents
-                if entry.file_type().is_dir() {
-                    walker.skip_current_dir();
-                }
-                continue;
+                return false; // Skip this entry and all its descendants
             }
         }
+        true
+    });
 
+    for entry in walker {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        let path = entry.path();
         if to_exclude.iter().any(|e| {
             path.file_name().is_some_and(|x| {
                 let x_l = x.to_string_lossy().to_lowercase();
