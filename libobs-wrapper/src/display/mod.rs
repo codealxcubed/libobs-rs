@@ -24,6 +24,7 @@ use std::{
     sync::{atomic::AtomicUsize, Arc, RwLock},
 };
 
+#[allow(dead_code)]
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
 //TODO: This has to be checked again, I'm unsure with pinning and draw callbacks from OBS
@@ -109,6 +110,7 @@ pub struct LockedPosition {
 
 #[derive(Clone, Debug)]
 pub struct ObsWindowHandle {
+    #[allow(dead_code)]
     pub(crate) window: Sendable<libobs::gs_window>,
     #[allow(dead_code)]
     pub(crate) is_wayland: bool,
@@ -176,6 +178,7 @@ impl ObsWindowHandle {
 
 impl ObsDisplayRef {
     /// Call initialize to ObsDisplay#create the display
+    #[allow(dead_code)]
     pub(crate) fn new(data: ObsDisplayCreationData, runtime: ObsRuntime) -> anyhow::Result<Self> {
         use std::sync::atomic::Ordering;
 

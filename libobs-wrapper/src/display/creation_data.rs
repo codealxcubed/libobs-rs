@@ -7,6 +7,7 @@ use super::{GsColorFormat, GsZstencilFormat};
 pub type RawDisplayHandle = *mut ::std::os::raw::c_void;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct ObsDisplayCreationData {
     pub(crate) window_handle: ObsWindowHandle,
     pub(super) create_child: bool,
@@ -89,6 +90,7 @@ impl ObsDisplayCreationData {
         self
     }
 
+    #[allow(dead_code)]
     pub(super) fn build(self, window_override: Option<ObsWindowHandle>) -> CloneableGsInitData {
         CloneableGsInitData(gs_init_data {
             cx: self.width,
