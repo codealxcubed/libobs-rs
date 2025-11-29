@@ -477,11 +477,11 @@ fn clean_up_files(
     }
 
     info!("Cleaning up unnecessary files...");
-    let walker = WalkDir::new(build_out).into_iter().filter_entry(|entry| {
+    let walker = WalkDir::new(build_out).into_iter().filter_entry(|_entry| {
         // Skip Resources and _CodeSignature directories inside .framework bundles (needed for code signing on macOS)
         #[cfg(target_os = "macos")]
         {
-            let path = entry.path();
+            let path = _entry.path();
             let file_name = path.file_name().and_then(|f| f.to_str());
             if (file_name == Some("Resources") || file_name == Some("_CodeSignature"))
                 && path
