@@ -196,7 +196,7 @@ impl ObsInner {
             }
         });
 
-        #[cfg_attr(not(target_os = "linux"), allow(unused_unsafe))]
+        #[allow(unused_unsafe)]
         let display = unsafe { context.display(data)? };
         Ok(Self {
             context,
