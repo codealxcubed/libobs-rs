@@ -164,11 +164,10 @@ impl ObsInner {
         let data: ObsDisplayCreationData =
             ObsDisplayCreationData::new(obs_handle, 0, 0, width, height);
 
-        #[cfg_attr(not(target_os = "linux"), allow(unused_unsafe))]
+        #[allow(unused_unsafe)]
         let display = unsafe { context.display(data)? };
         Ok(Self {
             context,
-            #[cfg_attr(not(target_os = "linux"), allow(unused_unsafe))]
             display,
             _source: monitor_src,
         })
