@@ -169,11 +169,11 @@ impl StartupPathsBuilder {
                 _ => "/usr/lib",
             };
 
-            return Self {
+            Self {
                 libobs_data_path: ObsPath::new("/usr/share/obs/libobs"),
                 plugin_bin_path: ObsPath::new(&(lib_path.to_string() + "/obs-plugins/%module%")),
                 plugin_data_path: ObsPath::new("/usr/share/obs/obs-plugins/%module%"),
-            };
+            }
         }
 
         // Windows uses relative paths from executable

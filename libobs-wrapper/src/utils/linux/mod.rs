@@ -60,6 +60,7 @@ impl Drop for LinuxGlibLoop {
     }
 }
 
+#[allow(dead_code)] // May be useful for future Wayland display handling
 pub(crate) fn wl_proxy_get_display(
     proxy: *mut std::os::raw::c_void,
 ) -> Result<*mut std::os::raw::c_void, libloading::Error> {
