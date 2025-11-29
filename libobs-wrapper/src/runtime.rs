@@ -422,7 +422,7 @@ impl ObsRuntime {
         #[cfg(target_os = "macos")]
         let native = platform_specific_setup()?;
         #[cfg(windows)]
-        let native: Option<PlatformSpecificGuard> = None;
+        let native = platform_specific_setup(None)?;
         unsafe {
             libobs::base_set_log_handler(Some(extern_log_callback), std::ptr::null_mut());
         }
