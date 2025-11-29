@@ -42,9 +42,7 @@ use crate::context::ObsContext;
 use crate::crash_handler::main_crash_handler;
 use crate::enums::{ObsLogLevel, ObsResetVideoStatus};
 use crate::logger::{extern_log_callback, internal_log_global, LOGGER};
-#[cfg(not(windows))]
-use crate::utils::initialization::platform_specific_setup;
-use crate::utils::initialization::PlatformSpecificGuard;
+use crate::utils::initialization::{platform_specific_setup, PlatformSpecificGuard};
 use crate::utils::{ObsError, ObsModules, ObsString};
 use crate::{context::OBS_THREAD_ID, utils::StartupInfo};
 
