@@ -12,10 +12,12 @@ use libobs_wrapper::{
     sources::ObsSourceBuilder,
     utils::{traits::ObsUpdatable, ObsPath},
 };
+use serial_test::serial;
 
 use crate::common::{assert_not_black, initialize_obs};
 
 #[test]
+#[serial]
 pub fn monitor_list_check() {
     MonitorCaptureSourceBuilder::get_monitors().unwrap();
 }
@@ -24,6 +26,7 @@ pub fn monitor_list_check() {
 const ENABLE_DXGI_TEST: bool = 1 == 0; // I know this is false, this is just so RustRover doesn't complain about dead code
 
 #[test]
+#[serial]
 pub fn record() {
     let rec_file = ObsPath::from_relative("monitor_capture.mp4");
     let path_out: PathBuf = rec_file.clone().into();

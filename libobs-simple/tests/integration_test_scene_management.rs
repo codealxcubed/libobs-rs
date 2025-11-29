@@ -1,9 +1,11 @@
 mod common;
 
 use libobs_wrapper::{context::ObsContext, utils::StartupInfo};
+use serial_test::serial;
 
 /// Integration test: Test creating a scene
 #[test]
+#[serial]
 pub fn test_scene_creation() {
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .is_test(true)
@@ -18,6 +20,7 @@ pub fn test_scene_creation() {
 
 /// Integration test: Test setting scene to channel
 #[test]
+#[serial]
 pub fn test_scene_set_to_channel() {
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .is_test(true)
@@ -34,6 +37,7 @@ pub fn test_scene_set_to_channel() {
 
 /// Integration test: Test creating multiple scenes
 #[test]
+#[serial]
 pub fn test_multiple_scenes() {
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .is_test(true)
@@ -54,6 +58,7 @@ pub fn test_multiple_scenes() {
 
 /// Integration test: Test scene lifecycle
 #[test]
+#[serial]
 pub fn test_scene_lifecycle() {
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .is_test(true)
@@ -77,6 +82,7 @@ pub fn test_scene_lifecycle() {
 
 /// Integration test: Test scene with different channel numbers
 #[test]
+#[serial]
 pub fn test_scene_different_channels() {
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .is_test(true)

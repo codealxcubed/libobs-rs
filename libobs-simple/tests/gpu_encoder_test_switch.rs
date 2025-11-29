@@ -16,6 +16,7 @@ use libobs_wrapper::{
     enums::ObsScaleType,
     utils::{AudioEncoderInfo, ObsPath, OutputInfo, VideoEncoderInfo},
 };
+use serial_test::serial;
 
 const ROUNDS: usize = 6;
 const RECORDING_DURATION: u64 = 2;
@@ -219,6 +220,7 @@ impl ReproState {
 }
 
 #[test]
+#[serial]
 fn test_encoder_switch() {
     let mut state = ReproState::new();
     let has_nvidia = state

@@ -20,8 +20,10 @@ use libobs_wrapper::{
     sources::ObsSourceBuilder,
     utils::{traits::ObsUpdatable, ObsPath},
 };
+use serial_test::serial;
 
 #[test]
+#[serial]
 // For this test to work, notepad must be open
 pub fn record() {
     let rec_file = ObsPath::from_relative("window_capture.mp4");

@@ -6,6 +6,7 @@ use std::{process::Command, time::Duration};
 
 use libobs_simple::sources::windows::{ObsWindowCaptureMethod, WindowCaptureSourceBuilder};
 use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
+use serial_test::serial;
 
 use common::initialize_obs;
 
@@ -13,6 +14,7 @@ use crate::common::find_notepad;
 
 /// Stage 5: Initialize OBS, create output with encoders, scene, and add window capture source
 #[test]
+#[serial]
 pub fn test_source() {
     let rec_file = ObsPath::from_relative("leak_test_source.mp4");
 
