@@ -42,7 +42,9 @@ use crate::context::ObsContext;
 use crate::crash_handler::main_crash_handler;
 use crate::enums::{ObsLogLevel, ObsResetVideoStatus};
 use crate::logger::{extern_log_callback, internal_log_global, LOGGER};
-use crate::utils::initialization::{platform_specific_setup, PlatformSpecificGuard};
+#[cfg(not(windows))]
+use crate::utils::initialization::platform_specific_setup;
+use crate::utils::initialization::PlatformSpecificGuard;
 use crate::utils::{ObsError, ObsModules, ObsString};
 use crate::{context::OBS_THREAD_ID, utils::StartupInfo};
 
@@ -421,6 +423,8 @@ impl ObsRuntime {
         let native = platform_specific_setup(info.nix_display.clone())?;
         #[cfg(target_os = "macos")]
         let native = platform_specific_setup()?;
+        #[cfg(windows)]
+        let native: Option<PlatformSpecificGuard> = None;
         unsafe {
             libobs::base_set_log_handler(Some(extern_log_callback), std::ptr::null_mut());
         }
@@ -546,6 +550,7 @@ impl ObsRuntime {
                 #[cfg(not(target_os = "macos"))]
                 const MAX_EXPECTED_LEAKS: i64 = 2;
 
+                let allocs = allocs as i64;
                 let mut notice = "";
                 let level = if allocs > MAX_EXPECTED_LEAKS {
                     ObsLogLevel::Error
