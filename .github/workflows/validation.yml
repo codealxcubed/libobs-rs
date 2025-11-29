@@ -99,10 +99,14 @@ jobs:
           crate: cargo-hack
       - name: Install OBS build dependencies (Windows)
         if: matrix.os != 'ubuntu-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cargo obs-build build --out-dir target/debug/deps
 
       - name: Install OBS build dependencies (Windows - nextest)
         if: matrix.os != 'ubuntu-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cargo obs-build build --out-dir target/nextest-all-features/debug/deps
 
       - name: Set up virtual display for Linux
