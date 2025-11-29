@@ -13,6 +13,9 @@ libobs-wrapper = { workspace = true }
 libobs-simple = { workspace = true }
 tokio = { version = "1.44.1", features = ["full"] }
 
+[features]
+__ci = ["libobs-bootstrapper/__ci"]
+
 [[bin]]
 name = "record"
 path = "src/record.rs"

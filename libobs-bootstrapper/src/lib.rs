@@ -39,6 +39,9 @@ pub use options::ObsBootstrapperOptions;
 
 use crate::status_handler::{ObsBootstrapConsoleHandler, ObsBootstrapStatusHandler};
 
+#[cfg(all(not(feature = "__ci"), target_os = "linux"))]
+compile_error!("libobs-bootstrapper is not supported on Linux.");
+
 pub enum BootstrapStatus {
     /// Downloading status (first is progress from 0.0 to 1.0 and second is message)
     Downloading(f32, String),
@@ -83,7 +86,9 @@ lazy_static! {
 pub const UPDATER_SCRIPT: &str = include_str!("./updater.ps1");
 
 fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
+    #[cfg(not(target_os = "linux"))]
     let executable = env::current_exe()?;
+    #[cfg(not(target_os = "linux"))]
     let parent = executable
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Failed to get parent directory"))?;
@@ -102,14 +107,7 @@ fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
 
     #[cfg(target_os = "linux")]
     {
-        // Linux: Check for libobs.so (system-wide or local)
-        let local_path = parent.join("libobs.so");
-        if local_path.exists() {
-            Ok(local_path)
-        } else {
-            // Fall back to system library path
-            Ok(PathBuf::from("/usr/lib/libobs.so"))
-        }
+        unreachable!("libobs-bootstrapper is not supported on Linux.");
     }
 }
 

@@ -40,6 +40,7 @@ log = "0.4"
 default = ["install_dummy_dll"]
 generate_bindings = ["libobs/generate_bindings"]
 install_dummy_dll = []
+__ci = []
 
 [package.metadata.docs.rs]
 targets = ["x86_64-pc-windows-msvc"]
