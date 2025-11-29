@@ -27,30 +27,8 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=obs");
         }
     } else if target_family == "windows" {
-        // Windows: Detect target directory for obs.dll
-        let out_dir = env::var("OUT_DIR").unwrap();
-        let target_dir = std::path::Path::new(&out_dir)
-            .ancestors()
-            .find(|p| {
-                p.ends_with("target/debug")
-                    || p.ends_with("target/release")
-                    || p.file_name().and_then(|f| f.to_str()) == Some("debug")
-                    || p.file_name().and_then(|f| f.to_str()) == Some("release")
-            })
-            .and_then(|p| {
-                if p.ends_with("debug") || p.ends_with("release") {
-                    Some(p)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")));
-
-        println!("cargo:rustc-link-search=native={}", target_dir.display());
-        println!(
-            "cargo:rustc-link-search=native={}",
-            target_dir.join("deps").display()
-        );
+        let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+        println!("cargo:rustc-link-search=native={}", manifest_dir);
         println!("cargo:rustc-link-lib=dylib=obs");
     } else if target_os == "macos" {
         // macOS: Link to libobs.framework
