@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     {
         eprintln!("This example is only supported on Windows and Linux.");
         eprintln!("macOS screen capture sources are not yet implemented in libobs-simple.");
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(any(windows, target_os = "linux"))]
