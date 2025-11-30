@@ -215,7 +215,9 @@ pub(crate) fn bootstrap(
 }
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) async fn spawn_updater(options: ObsBootstrapperOptions) -> Result<(), ObsBootstrapError>{
+pub(crate) async fn spawn_updater(
+    options: ObsBootstrapperOptions,
+) -> Result<(), ObsBootstrapError> {
     let pid = process::id();
     let args = env::args().collect::<Vec<_>>();
     // Skip the first argument which is the executable path
@@ -274,11 +276,15 @@ pub(crate) async fn spawn_updater(options: ObsBootstrapperOptions) -> Result<(),
 async fn move_obs_files_macos() -> Result<(), ObsBootstrapError> {
     use tokio::fs;
 
-    let exe_path = env::current_exe().context("Failed to get exe path")
+    let exe_path = env::current_exe()
+        .context("Failed to get exe path")
         .map_err(|e| ObsBootstrapError::IoError("Getting current exe", e))?;
-    let exe_dir = exe_path
-        .parent()
-        .ok_or_else(|| ObsBootstrapError::IoError("Getting exe parent directory", std::io::Error::from(std::io::ErrorKind::InvalidInput)))?;
+    let exe_dir = exe_path.parent().ok_or_else(|| {
+        ObsBootstrapError::IoError(
+            "Getting exe parent directory",
+            std::io::Error::from(std::io::ErrorKind::InvalidInput),
+        )
+    })?;
 
     let obs_new_dir = exe_dir.join("obs_new");
 

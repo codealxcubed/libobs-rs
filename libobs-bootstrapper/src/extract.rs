@@ -18,9 +18,7 @@ pub enum ExtractStatus {
 }
 
 type ExtractStream = Pin<Box<dyn Stream<Item = ExtractStatus> + Send>>;
-pub(crate) async fn extract_obs(
-    archive_file: &Path,
-) -> Result<ExtractStream, ObsBootstrapError>  {
+pub(crate) async fn extract_obs(archive_file: &Path) -> Result<ExtractStream, ObsBootstrapError> {
     log::info!("Extracting OBS at {}", archive_file.display());
 
     let path = PathBuf::from(archive_file);
@@ -115,7 +113,10 @@ pub(crate) async fn extract_obs(
 }
 
 #[cfg(target_os = "macos")]
-async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> Result<ExtractStream, ObsBootstrapError> {
+async fn extract_dmg(
+    dmg_path: &Path,
+    output_dir: &Path,
+) -> Result<ExtractStream, ObsBootstrapError> {
     use tokio::process::Command;
     use uuid::Uuid;
 
@@ -240,10 +241,15 @@ async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), ObsBootstrapEr
     use tokio::process::Command;
 
     // Use ditto to preserve code signatures and extended attributes on macOS
-    tokio::fs::create_dir_all(dst.parent().unwrap_or(dst)).await
+    tokio::fs::create_dir_all(dst.parent().unwrap_or(dst))
+        .await
         .map_err(|e| ObsBootstrapError::IoError("Creating destination parent directory", e))?;
 
-    let status = Command::new("ditto").arg(src).arg(dst).status().await
+    let status = Command::new("ditto")
+        .arg(src)
+        .arg(dst)
+        .status()
+        .await
         .map_err(|e| ObsBootstrapError::IoError("Executing ditto command", e))?;
 
     if !status.success() {
