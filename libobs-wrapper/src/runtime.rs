@@ -175,7 +175,7 @@ impl ObsRuntime {
     ///
     /// Creates the OBS thread and performs core initialization.
     #[cfg(not(feature = "enable_runtime"))]
-    fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
+    fn init(info: StartupInfo) -> Result<(ObsRuntime, ObsModules, StartupInfo), ObsError> {
         let (startup, mut modules, platform_specific) = Self::initialize_inner(info)?;
 
         let runtime = Self {
@@ -191,7 +191,7 @@ impl ObsRuntime {
     ///
     /// Creates the OBS thread and performs core initialization.
     #[cfg(feature = "enable_runtime")]
-    fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
+    fn init(info: StartupInfo) -> Result<(ObsRuntime, ObsModules, StartupInfo), ObsError> {
         let (command_sender, command_receiver) = channel();
         let (init_tx, init_rx) = oneshot::channel();
         let queued_commands = Arc::new(AtomicUsize::new(0));
@@ -236,7 +236,9 @@ impl ObsRuntime {
 
         log::trace!("Waiting for OBS thread to initialize");
         // Wait for initialization to complete
-        let (mut m, info) = init_rx.recv()??;
+        let (mut m, info) = init_rx.recv().map_err(|_| {
+            ObsError::RuntimeChannelError("Failed to receive initialization result".to_string())
+        })??;
 
         let handle = Arc::new(Mutex::new(Some(handle)));
         let command_sender = Arc::new(command_sender);
@@ -278,14 +280,13 @@ impl ObsRuntime {
     ///     }).await.unwrap();
     /// }
     /// ```
-    pub fn run_with_obs<F>(&self, operation: F) -> anyhow::Result<()>
+    pub fn run_with_obs<F>(&self, operation: F) -> Result<(), ObsError>
     where
         F: FnOnce() + Send + 'static,
     {
         self.run_with_obs_result(move || {
             operation();
-            Result::<(), anyhow::Error>::Ok(())
-        })??;
+        })?;
 
         Ok(())
     }
@@ -316,7 +317,7 @@ impl ObsRuntime {
     ///     println!("OBS Version: {:?}", version);
     /// }
     /// ```
-    pub fn run_with_obs_result<F, T>(&self, operation: F) -> anyhow::Result<T>
+    pub fn run_with_obs_result<F, T>(&self, operation: F) -> Result<T, ObsError>
     where
         F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
@@ -338,17 +339,22 @@ impl ObsRuntime {
 
             self.command_sender
                 .send(ObsCommand::Execute(Box::new(wrapper), tx))
-                .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
+                .map_err(|_| {
+                    ObsError::RuntimeChannelError(
+                        "Failed to send command to OBS thread".to_string(),
+                    )
+                })?;
 
-            let result = rx
-                .recv()
-                .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
+            let result = rx.recv().map_err(|_| {
+                ObsError::RuntimeChannelError("OBS thread dropped the response channel".to_string())
+            })?;
 
             // Downcast the Any type back to T
-            let res = result
-                .downcast::<T>()
-                .map(|boxed| *boxed)
-                .map_err(|_| anyhow::anyhow!("Failed to downcast result to the expected type"))?;
+            let res = result.downcast::<T>().map(|boxed| *boxed).map_err(|_| {
+                ObsError::RuntimeChannelError(
+                    "Failed to downcast result to the expected type".to_string(),
+                )
+            })?;
 
             Ok(res)
         }
@@ -618,16 +624,13 @@ impl Drop for _ObsRuntimeGuard {
         log::trace!("Dropping ObsRuntime and shutting down OBS thread");
         // Theoretically the queued_commands is zero and should be increased but because
         // we are shutting down, we don't care about that.
-        let r = self
-            .command_sender
-            .send(ObsCommand::Terminate)
-            .map_err(|_| anyhow::anyhow!("Failed to send termination command to OBS thread"));
+        let r = self.command_sender.send(ObsCommand::Terminate);
 
         if thread::panicking() {
             return;
         }
 
-        r.unwrap();
+        r.expect("Failed to send termination command to OBS thread");
         #[cfg(any(
             not(feature = "no_blocking_drops"),
             test,

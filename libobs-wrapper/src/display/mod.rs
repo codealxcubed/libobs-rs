@@ -178,11 +178,9 @@ impl ObsWindowHandle {
 
 impl ObsDisplayRef {
     /// Call initialize to ObsDisplay#create the display
-    #[allow(dead_code)]
-    pub(crate) fn new(data: ObsDisplayCreationData, runtime: ObsRuntime) -> anyhow::Result<Self> {
+    pub(crate) fn new(data: ObsDisplayCreationData, runtime: ObsRuntime) -> Result<Self, ObsError> {
         use std::sync::atomic::Ordering;
 
-        use anyhow::bail;
         use creation_data::ObsDisplayCreationData;
 
         use crate::run_with_obs;
@@ -228,7 +226,9 @@ impl ObsDisplayRef {
         })?;
 
         if display.0.is_null() {
-            bail!("OBS failed to create display");
+            return Err(ObsError::DisplayCreationError(
+                "OBS failed to create display".to_string(),
+            ));
         }
 
         #[cfg(windows)]

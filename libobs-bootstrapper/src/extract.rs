@@ -9,22 +9,29 @@ use futures_core::Stream;
 use futures_util::{StreamExt, pin_mut};
 use sevenz_rust::{Password, SevenZReader, default_entry_extract_fn};
 use tokio::task;
+
+use crate::error::ObsBootstrapError;
+
 pub enum ExtractStatus {
-    Error(anyhow::Error),
+    Error(ObsBootstrapError),
     Progress(f32, String),
 }
 
 type ExtractStream = Pin<Box<dyn Stream<Item = ExtractStatus> + Send>>;
-
-pub(crate) async fn extract_obs(archive_file: &Path) -> anyhow::Result<ExtractStream> {
+pub(crate) async fn extract_obs(
+    archive_file: &Path,
+) -> Result<ExtractStream, ObsBootstrapError>  {
     log::info!("Extracting OBS at {}", archive_file.display());
 
     let path = PathBuf::from(archive_file);
 
-    let destination = current_exe()?;
+    let destination =
+        current_exe().map_err(|e| ObsBootstrapError::IoError("Getting current exe", e))?;
     let destination = destination
         .parent()
-        .ok_or_else(|| anyhow::anyhow!("Should be able to get parent of exe"))?
+        .ok_or_else(|| {
+            ObsBootstrapError::ExtractError("Should be able to get parent of exe".to_string())
+        })?
         .join("obs_new");
 
     // Platform-specific extraction
@@ -39,12 +46,18 @@ pub(crate) async fn extract_obs(archive_file: &Path) -> anyhow::Result<ExtractSt
     let dest = destination.clone();
     let stream = stream! {
         yield Ok((0.0, "Reading file...".to_string()));
-        let mut sz = SevenZReader::open(&path, Password::empty())?;
+        let sz = SevenZReader::open(&path, Password::empty());
+        if let Err(e) = sz {
+            yield Err(ObsBootstrapError::ExtractError(e.to_string()));
+            return;
+        }
+        let mut sz = sz.unwrap();
         let (tx, mut rx) = tokio::sync::mpsc::channel(5);
 
         let total = sz.archive().files.len() as f32;
-        if !dest.exists() {
-            std::fs::create_dir_all(&dest)?;
+        if !dest.exists() && let Err(err) = std::fs::create_dir_all(&dest) {
+            yield Err(ObsBootstrapError::IoError("Failed to create destination directory", err));
+            return;
         }
 
         let mut curr = 0;
@@ -56,9 +69,9 @@ pub(crate) async fn extract_obs(archive_file: &Path) -> anyhow::Result<ExtractSt
                 let dest_path = dest.join(entry.name());
 
                 default_entry_extract_fn(entry, reader, &dest_path)
-            })?;
+            }).map_err(|e| ObsBootstrapError::ExtractError(e.to_string()))?;
 
-            Result::<_, anyhow::Error>::Ok((1.0, "Extraction done".to_string()))
+            Result::<_, ObsBootstrapError>::Ok((1.0, "Extraction done".to_string()))
         });
 
         loop {
@@ -73,7 +86,7 @@ pub(crate) async fn extract_obs(archive_file: &Path) -> anyhow::Result<ExtractSt
                     match res {
                         Ok(e) => yield e,
                         Err(e) => {
-                            yield Err(e.into());
+                            yield Err(ObsBootstrapError::ExtractError(e.to_string()));
                         }
                     }
 
@@ -102,7 +115,7 @@ pub(crate) async fn extract_obs(archive_file: &Path) -> anyhow::Result<ExtractSt
 }
 
 #[cfg(target_os = "macos")]
-async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<ExtractStream> {
+async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> Result<ExtractStream, ObsBootstrapError> {
     use tokio::process::Command;
     use uuid::Uuid;
 
@@ -117,7 +130,8 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
         yield Ok((0.0, "Mounting DMG...".to_string()));
 
         // Create mount point
-        tokio::fs::create_dir_all(&mount_point).await?;
+        tokio::fs::create_dir_all(&mount_point).await
+            .map_err(|e| ObsBootstrapError::IoError("Creating mount point", e))?;
 
         // Mount the DMG
         let mount_output = Command::new("hdiutil")
@@ -129,7 +143,7 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
 
         if !mount_output.status.success() {
             let error_msg = String::from_utf8_lossy(&mount_output.stderr);
-            yield Err(anyhow::anyhow!("Failed to mount DMG: {}", error_msg));
+            yield Err(ObsBootstrapError::ExtractError(format!("Failed to mount DMG: {}", error_msg)));
             return;
         }
 
@@ -139,7 +153,7 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
         let app_path = mount_point.join("OBS.app/Contents");
         if !app_path.exists() {
             let _ = Command::new("hdiutil").args(["detach"]).arg(&mount_point).output().await;
-            yield Err(anyhow::anyhow!("OBS.app not found in DMG"));
+            yield Err(ObsBootstrapError::ExtractError("OBS.app not found in DMG".to_string()));
             return;
         }
 
@@ -222,13 +236,15 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
 }
 
 #[cfg(target_os = "macos")]
-async fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
+async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), ObsBootstrapError> {
     use tokio::process::Command;
 
     // Use ditto to preserve code signatures and extended attributes on macOS
-    tokio::fs::create_dir_all(dst.parent().unwrap_or(dst)).await?;
+    tokio::fs::create_dir_all(dst.parent().unwrap_or(dst)).await
+        .map_err(|e| ObsBootstrapError::IoError("Creating destination parent directory", e))?;
 
-    let status = Command::new("ditto").arg(src).arg(dst).status().await?;
+    let status = Command::new("ditto").arg(src).arg(dst).status().await
+        .map_err(|e| ObsBootstrapError::IoError("Executing ditto command", e))?;
 
     if !status.success() {
         anyhow::bail!("ditto failed copying {:?} to {:?}", src, dst);

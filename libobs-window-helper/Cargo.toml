@@ -11,7 +11,6 @@ authors = ["Hendrik Lind <hendrik@sshcrack.me>"]
 license = "GPL-3.0"
 
 [dependencies]
-anyhow = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"], optional = true }
 specta = { optional = true, git = "https://github.com/specta-rs/specta", version = "=2.0.0-rc.20", features = [
     "serde",
@@ -39,7 +38,6 @@ windows = { version = "0.62", features = [
 ] }
 
 [features]
-backtrace = ["anyhow/backtrace"]
 serde = ["dep:serde"]
 specta = ["dep:specta"]
 

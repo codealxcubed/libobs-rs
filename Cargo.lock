@@ -399,7 +399,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-obs-build"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -1876,7 +1876,6 @@ dependencies = [
 name = "libobs-bootstrapper"
 version = "0.2.2"
 dependencies = [
- "anyhow",
  "async-stream",
  "futures-core",
  "futures-util",
@@ -1888,6 +1887,7 @@ dependencies = [
  "reqwest",
  "semver",
  "serde",
+ "serde_json",
  "sevenz-rust",
  "sha2",
  "tokio",
@@ -1928,7 +1928,6 @@ dependencies = [
 name = "libobs-window-helper"
 version = "0.2.1"
 dependencies = [
- "anyhow",
  "serde",
  "serde_json",
  "specta 2.0.0-rc.20",
@@ -1939,7 +1938,6 @@ dependencies = [
 name = "libobs-wrapper"
 version = "6.0.3+32.0.2"
 dependencies = [
- "anyhow",
  "arboard",
  "chrono",
  "colored 3.0.0",
