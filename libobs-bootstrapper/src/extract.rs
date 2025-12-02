@@ -131,8 +131,11 @@ async fn extract_dmg(
         yield Ok((0.0, "Mounting DMG...".to_string()));
 
         // Create mount point
-        tokio::fs::create_dir_all(&mount_point).await
-            .map_err(|e| ObsBootstrapError::IoError("Creating mount point", e))?;
+        let create_result = tokio::fs::create_dir_all(&mount_point).await;
+        if let Err(e) = create_result {
+            yield Err(ObsBootstrapError::IoError("Creating mount point directory", e));
+            return;
+        }
 
         // Mount the DMG
         let mount_output = Command::new("hdiutil")
