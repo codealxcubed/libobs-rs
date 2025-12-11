@@ -236,8 +236,8 @@ impl ObsRuntime {
 
         log::trace!("Waiting for OBS thread to initialize");
         // Wait for initialization to complete
-        let (mut m, info) = init_rx.recv().map_err(|_| {
-            ObsError::RuntimeChannelError("Failed to receive initialization result".to_string())
+        let (mut m, info) = init_rx.recv().map_err(|e| {
+            ObsError::RuntimeChannelError(format!("Failed to receive initialization result: {:?}", e))
         })??;
 
         let handle = Arc::new(Mutex::new(Some(handle)));
@@ -429,6 +429,7 @@ impl ObsRuntime {
         let native = platform_specific_setup()?;
         #[cfg(windows)]
         let native = platform_specific_setup(None)?;
+
         unsafe {
             libobs::base_set_log_handler(Some(extern_log_callback), std::ptr::null_mut());
         }

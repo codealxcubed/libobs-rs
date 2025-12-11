@@ -168,17 +168,26 @@ fn generate_bindings(target_os: &str) {
         .clang_arg(format!("-I{}", "headers/obs"));
 
     // macOS: Add Homebrew include paths for simde and other dependencies
+    // Only add simde paths when building for ARM targets (where simde emulates x86 intrinsics)
+    // For x86_64 targets, native SIMD headers are used and simde would conflict
     if target_os == "macos" {
-        // Apple Silicon Macs
-        if std::path::Path::new("/opt/homebrew/include").exists() {
-            builder = builder.clang_arg("-I/opt/homebrew/include");
+        let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+        
+        // Only include simde/homebrew paths for ARM targets
+        if target_arch == "aarch64" {
+            // Apple Silicon Macs
+            if std::path::Path::new("/opt/homebrew/include").exists() {
+                builder = builder.clang_arg("-I/opt/homebrew/include");
+            }
+            // Tell simde to not use native SIMD - avoids ARM NEON type alignment issues
+            builder = builder.clang_arg("-DSIMDE_NO_NATIVE");
+        } else if target_arch == "x86_64" {
+            // Intel Macs - only add if not cross-compiling from ARM
+            // (cross-compiling would have conflicting simde headers)
+            if std::path::Path::new("/usr/local/include").exists() {
+                builder = builder.clang_arg("-I/usr/local/include");
+            }
         }
-        // Intel Macs
-        if std::path::Path::new("/usr/local/include").exists() {
-            builder = builder.clang_arg("-I/usr/local/include");
-        }
-        // Tell simde to not use native SIMD - avoids ARM NEON type alignment issues
-        builder = builder.clang_arg("-DSIMDE_NO_NATIVE");
     }
 
     // Apply previous windows/MSVC blocklists when not Linux and feature not enabled.

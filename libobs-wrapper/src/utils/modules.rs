@@ -195,7 +195,12 @@ impl Drop for ObsModules {
         log::trace!("Dropping ObsModules and removing module paths...");
 
         let paths = self.paths.clone();
-        let runtime = self.runtime.take().unwrap();
+
+        // Runtime may be None if OBS initialization failed - nothing to clean up in that case
+        let Some(runtime) = self.runtime.take() else {
+            log::trace!("ObsModules::drop: runtime is None, skipping cleanup");
+            return;
+        };
 
         #[cfg(any(
             not(feature = "no_blocking_drops"),

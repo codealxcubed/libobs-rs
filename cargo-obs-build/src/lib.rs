@@ -135,6 +135,7 @@ impl Default for ObsBuildConfig {
 /// - Uses default cache directory ("obs-build") if none is specified in metadata
 /// - Auto-detects the OBS version from the libobs crate
 /// - Handles all caching and locking
+/// - Also copies essential helper binaries to the `deps/` subdirectory for test support
 ///
 /// # Example
 ///
@@ -162,7 +163,16 @@ pub fn install() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    build_obs_binaries(config)
+    build_obs_binaries(config)?;
+
+    // Also copy essential helper binaries to deps/ directory for test support
+    // Tests run from target/{profile}/deps/ and need obs-ffmpeg-mux there
+    let deps_dir = target_dir.join("deps");
+    if deps_dir.exists() {
+        copy_helper_binaries_to_deps(target_dir, &deps_dir)?;
+    }
+
+    Ok(())
 }
 
 /// Build and install OBS binaries according to the provided configuration
@@ -330,6 +340,34 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
     macos::setup_macos_files(&target_out_dir)?;
 
     info!("Done!");
+
+    Ok(())
+}
+
+/// Copy essential helper binaries to the deps directory for test support.
+/// Tests run from target/{profile}/deps/ and need these binaries accessible.
+fn copy_helper_binaries_to_deps(target_dir: &Path, deps_dir: &Path) -> anyhow::Result<()> {
+    // List of helper binaries that need to be accessible from deps/
+    let helper_binaries = ["obs-ffmpeg-mux"];
+
+    for helper in &helper_binaries {
+        let src = target_dir.join(helper);
+        let dst = deps_dir.join(helper);
+
+        if src.exists() && !dst.exists() {
+            debug!("Copying {} to deps/ for test support", helper);
+            fs::copy(&src, &dst)?;
+
+            // On Unix, preserve executable permission
+            #[cfg(unix)]
+            {
+                if let Ok(metadata) = fs::metadata(&src) {
+                    let permissions = metadata.permissions();
+                    fs::set_permissions(&dst, permissions)?;
+                }
+            }
+        }
+    }
 
     Ok(())
 }
