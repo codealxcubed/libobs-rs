@@ -167,7 +167,11 @@ impl StartupPathsBuilder {
             if let Some(obs_root) = obs_root {
                 let share_path = obs_root.join("share").join("obs").join("libobs");
                 let plugin_bin_path = obs_root.join("lib").join("obs-plugins").join("%module%");
-                let plugin_data_path = share_path.join("obs-plugins").join("%module%");
+                let plugin_data_path = obs_root
+                    .join("share")
+                    .join("obs")
+                    .join("obs-plugins")
+                    .join("%module%");
 
                 let share_path = share_path.to_str();
                 let plugin_bin_path = plugin_bin_path.to_str();
@@ -183,6 +187,12 @@ impl StartupPathsBuilder {
                             };
                         }
                     }
+                }
+
+                if share_path.is_none() || plugin_bin_path.is_none() || plugin_data_path.is_none() {
+                    log::warn!(
+                        "[libobs-wrapper]: Failed to convert Nix OBS paths to strings, falling back to default Linux paths."
+                    );
                 }
             }
         }
