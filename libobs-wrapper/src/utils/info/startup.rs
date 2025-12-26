@@ -2,7 +2,7 @@ use crate::{
     context::ObsContext,
     data::{audio::ObsAudioInfo, video::ObsVideoInfo},
     logger::{ConsoleLogger, ObsLogger},
-    utils::{initialization::NixDisplay, ObsError, ObsPath, ObsString},
+    utils::{initialization::NixDisplay, linux::find_obs_binary, ObsError, ObsPath, ObsString},
 };
 
 /// Contains information to start a libobs context.
@@ -156,6 +156,36 @@ impl StartupPathsBuilder {
             plugin_bin_path: ObsPath::from_relative("obs-plugins/64bit"),
             plugin_data_path: ObsPath::from_relative("data/obs-plugins/%module%"),
         };
+
+        let obs_binary = find_obs_binary();
+        let is_nix_obs = obs_binary
+            .ancestors()
+            .any(|a| a.file_name().map(|n| n == "nix").unwrap_or(false));
+
+        if is_nix_obs {
+            let obs_root = obs_binary.parent().and_then(|p| p.parent());
+            if let Some(obs_root) = obs_root {
+                let share_path = obs_root.join("share").join("obs").join("libobs");
+                let plugin_bin_path = obs_root.join("lib").join("obs-plugins").join("%module%");
+                let plugin_data_path = share_path.join("obs-plugins").join("%module%");
+
+                let share_path = share_path.to_str();
+                let plugin_bin_path = plugin_bin_path.to_str();
+                let plugin_data_path = plugin_data_path.to_str();
+
+                if let Some(plugin_bin_path) = plugin_bin_path {
+                    if let Some(plugin_data_path) = plugin_data_path {
+                        if let Some(share_path) = share_path {
+                            return Self {
+                                libobs_data_path: ObsPath::new(share_path),
+                                plugin_bin_path: ObsPath::new(plugin_bin_path),
+                                plugin_data_path: ObsPath::new(plugin_data_path),
+                            };
+                        }
+                    }
+                }
+            }
+        }
 
         #[cfg(target_os = "linux")]
         let arch = std::env::consts::ARCH;
