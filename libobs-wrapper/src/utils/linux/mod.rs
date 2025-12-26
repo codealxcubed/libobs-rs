@@ -82,7 +82,16 @@ pub(crate) fn wl_proxy_get_display(
 
 /// We are trying to get the correct OpenGL library name for Linux systems derived from the obs binary, this is a bit hacky.
 pub(crate) fn get_linux_opengl_lib_name() -> String {
-    let obs_bin = "/usr/bin/obs"; // Default path, can be changed if needed
+    let obs_bin = std::env::var("PATH")
+        .ok()
+        .and_then(|path| {
+            path.split(':')
+                .map(|dir| std::path::PathBuf::from(dir).join("obs"))
+                .find(|p| p.exists())
+        })
+        .unwrap_or_else(|| std::path::PathBuf::from("/usr/bin/obs"));
+    let obs_bin = obs_bin.to_str().unwrap_or("/usr/bin/obs");
+
     if !std::path::Path::new(obs_bin).exists() {
         log::debug!("Couldn't find /usr/bin/obs, using fallback OpenGL lib name.");
         return "libobs-opengl.so".to_string(); // Fallback
