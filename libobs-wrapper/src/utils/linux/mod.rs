@@ -1,6 +1,7 @@
 //! Contains linux specific bindings to x11 and wayland
 
 use std::{fs, os::raw::c_char};
+use std::path::PathBuf;
 
 extern "C" {
     // X11 functions
@@ -81,19 +82,47 @@ pub(crate) fn wl_proxy_get_display(
 }
 
 /// We are trying to get the correct OpenGL library name for Linux systems derived from the obs binary, this is a bit hacky.
+pub(crate) fn find_obs_binary() -> PathBuf {
+    let path_env = std::env::var("PATH").ok();
+    let mut preferred: Option<PathBuf> = None;
+    let mut fallback: Option<PathBuf> = None;
+
+    if let Some(path) = path_env {
+        for dir in path.split(':') {
+            let base = PathBuf::from(dir);
+
+            // Prefer ".obs-wrapped" if any ancestor folder is "nix"
+            let wrapped = base.join(".obs-wrapped");
+            if wrapped.exists() {
+                let has_nix_parent = wrapped
+                    .ancestors()
+                    .any(|a| a.file_name().map(|n| n == "nix").unwrap_or(false));
+                if has_nix_parent {
+                    preferred = Some(wrapped);
+                    break;
+                }
+            }
+
+            // Fallback to "obs"
+            let obs = base.join("obs");
+            if fallback.is_none() && obs.exists() {
+                fallback = Some(obs);
+            }
+        }
+    }
+
+    preferred.or(fallback).unwrap_or_else(|| PathBuf::from("/usr/bin/obs"))
+}
+
 pub(crate) fn get_linux_opengl_lib_name() -> String {
-    let obs_bin = std::env::var("PATH")
-        .ok()
-        .and_then(|path| {
-            path.split(':')
-                .map(|dir| std::path::PathBuf::from(dir).join("obs"))
-                .find(|p| p.exists())
-        })
-        .unwrap_or_else(|| std::path::PathBuf::from("/usr/bin/obs"));
+    let obs_bin = find_obs_binary();
     let obs_bin = obs_bin.to_str().unwrap_or("/usr/bin/obs");
 
     if !std::path::Path::new(obs_bin).exists() {
-        log::debug!("Couldn't find /usr/bin/obs, using fallback OpenGL lib name.");
+        log::debug!(
+            "Couldn't find obs binary at {}, using fallback OpenGL lib name.",
+            obs_bin
+        );
         return "libobs-opengl.so".to_string(); // Fallback
     }
 
