@@ -46,6 +46,7 @@ fn main() -> anyhow::Result<()> {
     let mut monitor_capture = context
         .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor Capture")?
         .set_monitor(&monitors[0])
+        .set_capture_method(libobs_simple::sources::windows::ObsDisplayCaptureMethod::MethodDXGI)
         .add_to_scene(&mut scene)?;
 
     #[cfg(target_os = "linux")]
@@ -87,7 +88,7 @@ fn main() -> anyhow::Result<()> {
         // Switching monitor
         monitor_capture
             .create_updater::<MonitorCaptureSourceUpdater>()?
-            .set_monitor(&monitors[1])
+            .set_monitor(&monitors[1 % monitors.len()])
             .update()?;
 
         println!("Recording for another 5 seconds...");
