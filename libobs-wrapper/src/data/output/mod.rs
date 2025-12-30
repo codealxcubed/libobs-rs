@@ -348,8 +348,13 @@ impl ObsOutputRef {
             Sendable(libobs::obs_output_get_last_error(output_ptr))
         })?;
 
-        let c_str = unsafe { CStr::from_ptr(err.0) };
-        let err_str = c_str.to_str().ok().map(|x| x.to_string());
+        // obs_output_get_last_error can return NULL if no error message was set
+        let err_str = if err.0.is_null() {
+            None
+        } else {
+            let c_str = unsafe { CStr::from_ptr(err.0) };
+            c_str.to_str().ok().map(|x| x.to_string())
+        };
 
         Err(ObsError::OutputStartFailure(err_str))
     }
@@ -392,8 +397,13 @@ impl ObsOutputRef {
                 Sendable(libobs::obs_output_get_last_error(output_ptr))
             })?;
 
-            let c_str = unsafe { CStr::from_ptr(err.0) };
-            let err_str = c_str.to_str().ok().map(|x| x.to_string());
+            // obs_output_get_last_error can return NULL if no error message was set
+            let err_str = if err.0.is_null() {
+                None
+            } else {
+                let c_str = unsafe { CStr::from_ptr(err.0) };
+                c_str.to_str().ok().map(|x| x.to_string())
+            };
 
             Err(ObsError::OutputPauseFailure(err_str))
         }
