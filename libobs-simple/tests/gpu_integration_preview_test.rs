@@ -4,11 +4,13 @@ use std::sync::{Arc, RwLock};
 
 #[cfg(target_os = "linux")]
 use libobs_simple::sources::linux::{
-    EitherSource, LinuxGeneralScreenCaptureBuilder, LinuxGeneralScreenCaptureSourceRef,
+    LinuxGeneralScreenCaptureBuilder, LinuxGeneralScreenCaptureSourceRef,
 };
+#[cfg(target_os = "linux")]
+use libobs_simple::sources::ObsEitherSource;
 use libobs_wrapper::graphics::Vec2;
 #[cfg(target_os = "linux")]
-use libobs_wrapper::scenes::SceneItemRef;
+use libobs_wrapper::scenes::ObsSceneItemRef;
 use libobs_wrapper::scenes::SceneItemTrait;
 #[cfg(target_os = "linux")]
 use libobs_wrapper::utils::NixDisplay;
@@ -42,7 +44,7 @@ struct ObsInner {
     context: ObsContext,
     display: ObsDisplayRef,
     #[cfg(target_os = "linux")]
-    _source: SceneItemRef<LinuxGeneralScreenCaptureSourceRef>,
+    _source: ObsSceneItemRef<LinuxGeneralScreenCaptureSourceRef>,
 }
 
 impl ObsInner {
@@ -212,7 +214,7 @@ impl ApplicationHandler for App {
         inner.context.remove_display(&inner.display).unwrap();
 
         #[cfg(target_os = "linux")]
-        if let EitherSource::Right(pipewire) = inner._source.inner_source() {
+        if let ObsEitherSource::Right(pipewire) = inner._source.inner_source() {
             if let Ok(Some(token)) = pipewire.get_restore_token() {
                 let restore_token_path = std::env::current_exe()
                     .unwrap()
