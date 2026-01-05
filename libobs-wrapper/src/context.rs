@@ -43,6 +43,8 @@ use std::{
     thread::ThreadId,
 };
 
+#[cfg(target_os = "linux")]
+use crate::utils::initialization::PlatformType;
 use crate::{
     data::{
         object::ObsObjectTrait,
@@ -104,10 +106,6 @@ pub struct ObsContext {
     pub(crate) filters: Arc<RwLock<Vec<ObsFilterRef>>>,
 
     #[skip_getter]
-    /// Contains active scenes mapped by their channel they are bound to
-    pub(crate) active_scenes: Arc<RwLock<HashMap<u32, ObsSceneRef>>>,
-
-    #[skip_getter]
     pub(crate) _obs_modules: Arc<ObsModules>,
 
     /// This struct must be the last element which makes sure
@@ -123,7 +121,10 @@ impl ObsContext {
     /// Checks if the installed OBS version matches the expected version.
     /// Returns true if the major version matches, false otherwise.
     pub fn check_version_compatibility() -> bool {
+        // Safety: This is fine, we are just getting a version string, which doesn't allocate any memory or have side effects.
         unsafe {
+            #[allow(unknown_lints)]
+            #[allow(ensure_obs_call_in_runtime)]
             let version = libobs::obs_get_version_string();
             if version.is_null() {
                 return false;
@@ -171,6 +172,11 @@ impl ObsContext {
     /// If initialization fails, an `ObsError` is returned.
     pub fn new(info: StartupInfo) -> Result<ObsContext, ObsError> {
         log::trace!("Getting version number...");
+
+        #[allow(unknown_lints)]
+        #[allow(ensure_obs_call_in_runtime)]
+        // Safety: This is fine, we are just getting a version number, which does not require
+        // to be on the OBS thread.
         let version_numb = unsafe { libobs::obs_get_version() };
         if version_numb == 0 {
             return Err(ObsError::InvalidDll);
@@ -185,10 +191,8 @@ impl ObsContext {
             None
         };
 
-        let active_scenes: Arc<RwLock<HashMap<u32, ObsSceneRef>>> = Default::default();
         Ok(Self {
             _obs_modules: Arc::new(obs_modules),
-            active_scenes: active_scenes.clone(),
             displays: Default::default(),
             outputs: Default::default(),
             scenes: Default::default(),
@@ -200,12 +204,20 @@ impl ObsContext {
         })
     }
 
+    #[cfg(target_os = "linux")]
+    pub fn get_platform(&self) -> Result<PlatformType, ObsError> {
+        self.runtime.get_platform()
+    }
+
     pub fn get_version(&self) -> Result<String, ObsError> {
         Self::get_version_global()
     }
 
     pub fn get_version_global() -> Result<String, ObsError> {
         unsafe {
+            #[allow(unknown_lints)]
+            #[allow(ensure_obs_call_in_runtime)]
+            // Safety: This is fine, it just returns a globally allocated variable
             let version = libobs::obs_get_version_string();
             let version_cstr = CStr::from_ptr(version);
 
@@ -272,7 +284,8 @@ impl ObsContext {
         // anything tied to the OBS context.
         let vid_ptr = Sendable(ovi.as_ptr());
         let reset_video_status = run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
-            libobs::obs_reset_video(vid_ptr)
+            // Safety: OVI is still in scope, so the pointer is valid as well.
+            libobs::obs_reset_video(vid_ptr.0)
         })?;
 
         let reset_video_status = num_traits::FromPrimitive::from_i32(reset_video_status);
@@ -303,6 +316,7 @@ impl ObsContext {
     pub unsafe fn get_video_ptr(&self) -> Result<Sendable<*mut video_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         run_with_obs!(self.runtime, || unsafe {
+            // Safety: This can be called as long as OBS hasn't shutdown, which it hasn't.
             Sendable(libobs::obs_get_video())
         })
     }
@@ -314,6 +328,7 @@ impl ObsContext {
     pub unsafe fn get_audio_ptr(&self) -> Result<Sendable<*mut audio_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         run_with_obs!(self.runtime, || unsafe {
+            // Safety: This can be called as long as OBS hasn't shutdown, which it hasn't.
             Sendable(libobs::obs_get_audio())
         })
     }
@@ -463,7 +478,10 @@ impl ObsContext {
                             }
 
                             let surface_handle = data.window_handle.window.0.display;
-                            let display_from_surface = wl_proxy_get_display(surface_handle);
+                            let display_from_surface = unsafe {
+                                // Safety: The display handle is valid as long as the surface is valid.
+                                wl_proxy_get_display(surface_handle)
+                            };
                             if let Err(e) = display_from_surface {
                                 log::warn!("Could not get display from surface handle on wayland. Make sure your wayland client is at least version 1.23. Error: {:?}", e);
                             } else {
@@ -581,11 +599,7 @@ impl ObsContext {
         name: T,
         channel: Option<u32>,
     ) -> Result<ObsSceneRef, ObsError> {
-        let scene = ObsSceneRef::new(
-            name.into(),
-            self.active_scenes.clone(),
-            self.runtime.clone(),
-        )?;
+        let scene = ObsSceneRef::new(name.into(), self.runtime.clone())?;
 
         let tmp = scene.clone();
         self.scenes

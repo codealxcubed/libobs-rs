@@ -14,7 +14,10 @@ macro_rules! impl_signal_manager {
             $(
             extern "C" fn [< $signal_name:snake _handler>](obj_ptr: *mut std::ffi::c_void, __internal_calldata: *mut libobs::calldata_t) {
                 #[allow(unused_unsafe)]
-                let res = unsafe { [< $signal_name:snake _handler_inner>](__internal_calldata) };
+                let res = unsafe {
+                    // Safety: We are in the runtime and the calldata pointer is valid because OBS is calling this function
+                    [< $signal_name:snake _handler_inner>](__internal_calldata)
+                };
                 if res.is_err() {
                     log::warn!("Error processing signal {}: {:?}", stringify!($signal_name), res.err());
                     return;
@@ -38,17 +41,22 @@ macro_rules! impl_signal_manager {
                 let _ = senders.send(res);
             })*
 
-            #[derive(Debug)]
             /// This signal manager must be within an `Arc` if you want to clone it.
+            #[derive(Debug)]
             pub struct $name {
-                pointer: $crate::unsafe_send::SendableComp<$ptr>,
-                runtime: $crate::runtime::ObsRuntime
+                runtime: $crate::runtime::ObsRuntime,
+                pointer: $crate::unsafe_send::SmartPointerSendable<$ptr>,
             }
 
             impl $name {
-                pub(crate) fn new(ptr: &$crate::unsafe_send::Sendable<$ptr>, runtime: $crate::runtime::ObsRuntime) -> Result<Self, $crate::utils::ObsError> {
-                    use $crate::{utils::ObsString, unsafe_send::SendableComp};
-                    let pointer =  SendableComp(ptr.0);
+                fn smart_ptr_to_key(ptr: &$crate::unsafe_send::SmartPointerSendable<$ptr>) -> $crate::unsafe_send::SendableComp<$ptr> {
+                    $crate::unsafe_send::SendableComp(ptr.get_ptr())
+                }
+
+                pub(crate) fn new(smart_ptr: &$crate::unsafe_send::SmartPointerSendable<$ptr>, runtime: $crate::runtime::ObsRuntime) -> Result<Self, $crate::utils::ObsError> {
+                    use $crate::utils::ObsString;
+                    let smart_ptr = smart_ptr.clone();
+                    let raw_ptr = Self::smart_ptr_to_key(&smart_ptr);
 
                     $(
                         let senders = [<$signal_name:snake:upper _SENDERS>].clone();
@@ -59,26 +67,28 @@ macro_rules! impl_signal_manager {
 
                         let (tx, [<_ $signal_name:snake _rx>]) = tokio::sync::broadcast::channel(16);
                         let mut senders = senders.unwrap();
-                        senders.insert(pointer.clone(), tx);
+                        // Its fine since we are just using the pointer as key
+                        senders.insert(raw_ptr.clone(), tx);
                     )*
 
-                    $crate::run_with_obs!(runtime, (pointer), move || {
-                            let handler = ($handler_getter)(pointer);
+                    $crate::run_with_obs!(runtime, (raw_ptr, smart_ptr), move || {
+                            let handler = ($handler_getter)(smart_ptr);
                             $(
                                 let signal = ObsString::new($signal_name);
                                 unsafe {
+                                    // Safety: We know that the handler must exist, the signal is still in scope, so the ptr to that is valid as well and we are just using the raw_ptr as key in the handler function.
                                     libobs::signal_handler_connect(
                                         handler,
                                         signal.as_ptr().0,
                                         Some([< $signal_name:snake _handler>]),
-                                        pointer as *mut std::ffi::c_void,
+                                        raw_ptr.0 as *mut std::ffi::c_void,
                                     );
                                 };
                             )*
                     })?;
 
                     Ok(Self {
-                        pointer,
+                        pointer: smart_ptr,
                         runtime
                     })
                 }
@@ -92,7 +102,8 @@ macro_rules! impl_signal_manager {
                         }
 
                         let handlers = handlers.unwrap();
-                        let rx = handlers.get(&self.pointer)
+                        let handler_key = Self::smart_ptr_to_key(&self.pointer);
+                        let rx = handlers.get(&handler_key)
                             .ok_or_else(|| $crate::utils::ObsError::NoSenderError)?
                             .subscribe();
 
@@ -113,15 +124,16 @@ macro_rules! impl_signal_manager {
                     //TODO make this non blocking
                     let future = $crate::run_with_obs!(runtime, (ptr), move || {
                         #[allow(unused_variables)]
-                        let handler = ($handler_getter)(ptr);
+                        let handler = ($handler_getter)(ptr.clone());
                         $(
                             let signal = $crate::utils::ObsString::new($signal_name);
                             unsafe {
+                                // Safety: We are in the runtime, the signal string is allocated, we still have the drop guard as ptr in this scope so the handler is valid.
                                 libobs::signal_handler_disconnect(
                                     handler,
                                     signal.as_ptr().0,
                                     Some([< $signal_name:snake _handler>]),
-                                    ptr as *mut std::ffi::c_void,
+                                    ptr.get_ptr() as *mut std::ffi::c_void,
                                 );
                             }
                         )*
@@ -136,7 +148,7 @@ macro_rules! impl_signal_manager {
                             }
 
                             let mut handlers = handlers.unwrap();
-                            handlers.remove(&self.pointer);
+                            handlers.remove(&Self::smart_ptr_to_key(&self.pointer));
                         )*
 
                         future

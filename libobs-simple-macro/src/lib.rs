@@ -22,7 +22,7 @@ mod parse;
 /// # Example
 ///
 /// ```ignore
-/// #[obs_object_updater("my_source", ObsSourceRef)]
+/// #[obs_object_updater("my_source", ObsSourceRef, *mut libobs::obs_source_t)]
 /// pub struct MySourceUpdater {
 ///     #[obs_property(type_t = "string")]
 ///     pub url: String,
@@ -33,6 +33,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
     let u_input = parse_macro_input!(attr as UpdaterInput);
     let id_value = u_input.name.value();
     let updatable_type = u_input.updatable_type;
+    let underlying_ptr_type = u_input.underlying_ptr_type;
 
     let input = parse_macro_input!(item as DeriveInput);
 
@@ -70,7 +71,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
             updatable: &'a mut #updatable_type2
         }
 
-        impl <'a> libobs_wrapper::data::ObsObjectUpdater<'a> for #updater_name<'a> {
+        impl <'a> libobs_wrapper::data::ObsObjectUpdater<'a, #underlying_ptr_type> for #updater_name<'a> {
             type ToUpdate = #updatable_type;
 
             fn create_update(runtime: libobs_wrapper::runtime::ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, libobs_wrapper::utils::ObsError> {
@@ -95,6 +96,11 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             fn get_settings(&self) -> &libobs_wrapper::data::ObsData {
                 &self.settings
+            }
+
+            fn runtime(&self) -> &libobs_wrapper::runtime::ObsRuntime {
+                use libobs_wrapper::data::object::ObsObjectTrait;
+                self.updatable.runtime()
             }
 
             fn get_settings_updater(&mut self) -> &mut libobs_wrapper::data::ObsDataUpdater {
@@ -260,6 +266,10 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                 })
             }
 
+            fn runtime(&self) -> &libobs_wrapper::runtime::ObsRuntime {
+                &self.runtime
+            }
+
             fn get_settings(&self) -> &libobs_wrapper::data::ObsData {
                 &self.settings
             }
@@ -284,7 +294,7 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                 #id_value.into()
             }
 
-            fn build(self) -> Result<libobs_wrapper::utils::ObjectInfo, libobs_wrapper::utils::ObsError> {
+            fn object_build(self) -> Result<libobs_wrapper::utils::ObjectInfo, libobs_wrapper::utils::ObsError> {
                 let name = self.get_name();
                 let #builder_name {
                     settings_updater,

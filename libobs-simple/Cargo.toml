@@ -30,6 +30,9 @@ paste = { workspace = true }
 tokio = { workspace = true, features = ["sync"], default-features = false }
 lazy_static.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
 [features]
 default = ["window-list", "enable_runtime"]
 generate_bindings = ["libobs/generate_bindings", "libobs-wrapper/generate_bindings"]

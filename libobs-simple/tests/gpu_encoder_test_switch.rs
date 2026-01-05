@@ -19,6 +19,7 @@ use libobs_wrapper::{
         audio::ObsAudioEncoder, video::ObsVideoEncoder, ObsContextEncoders, ObsVideoEncoderType,
     },
     enums::ObsScaleType,
+    scenes::SceneItemRef,
     utils::{AudioEncoderInfo, ObsPath, OutputInfo, VideoEncoderInfo},
 };
 
@@ -61,7 +62,7 @@ struct ReproState {
     // Key point: storing encoders by type to reuse them (like production code)
     video_encoders: HashMap<EncoderType, Arc<ObsVideoEncoder>>,
     _scene: libobs_wrapper::scenes::ObsSceneRef,
-    _monitor_capture: MonitorCaptureSource,
+    _monitor_capture: SceneItemRef<MonitorCaptureSource>,
 }
 
 impl ReproState {

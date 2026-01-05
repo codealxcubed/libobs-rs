@@ -1,47 +1,40 @@
-use std::{fmt::Debug, hash::Hash, sync::Arc};
-
 use crate::{
     data::object::ObsObjectTrait,
-    sources::ObsSourceSignals,
-    unsafe_send::{Sendable, SendableComp},
+    macros::impl_eq_of_ptr,
+    sources::{ObsFilterRef, ObsSourceSignals, _ObsRemoveFilterOnDrop},
     utils::ObsError,
 };
+use std::sync::Arc;
 
-#[doc(hidden)]
-pub trait ObsSourceTraitSealed: Debug + Send + Sync {
-    fn add_scene_item_ptr(
-        &self,
-        scene_ptr: SendableComp<*mut libobs::obs_scene_t>,
-        item_ptr: Sendable<*mut libobs::obs_scene_item>,
-    ) -> Result<(), ObsError>;
-
-    fn remove_scene_item_ptr(
-        &self,
-        scene_ptr: SendableComp<*mut libobs::obs_scene_t>,
-    ) -> Result<(), ObsError>;
-
-    fn get_scene_item_ptr(
-        &self,
-        scene_ptr: &SendableComp<*mut libobs::obs_scene_t>,
-    ) -> Result<Option<Sendable<*mut libobs::obs_scene_item>>, ObsError>;
+#[derive(Debug, Clone)]
+pub struct ObsFilterGuardPair {
+    filter: ObsFilterRef,
+    pub(crate) _guard: Arc<_ObsRemoveFilterOnDrop>,
 }
 
-impl PartialEq for dyn ObsSourceTrait {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_ptr().0 == other.as_ptr().0
+impl ObsFilterGuardPair {
+    pub(crate) fn new(filter: ObsFilterRef, guard: Arc<_ObsRemoveFilterOnDrop>) -> Self {
+        Self {
+            filter,
+            _guard: guard,
+        }
     }
-}
 
-impl Eq for dyn ObsSourceTrait {}
+    pub fn get_inner(&self) -> &ObsFilterRef {
+        &self.filter
+    }
 
-impl Hash for dyn ObsSourceTrait {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_ptr().0.hash(state);
+    pub fn get_inner_mut(&mut self) -> &mut ObsFilterRef {
+        &mut self.filter
     }
 }
 
 #[allow(private_bounds)]
-pub trait ObsSourceTrait: ObsObjectTrait + ObsSourceTraitSealed {
-    fn as_ptr(&self) -> Sendable<*mut libobs::obs_source_t>;
+pub trait ObsSourceTrait: ObsObjectTrait<*mut libobs::obs_source_t> {
     fn signals(&self) -> &Arc<ObsSourceSignals>;
+
+    fn get_active_filters(&self) -> Result<Vec<ObsFilterGuardPair>, ObsError>;
+    fn apply_filter(&self, filter: &ObsFilterRef) -> Result<(), ObsError>;
 }
+
+impl_eq_of_ptr!(dyn ObsSourceTrait);

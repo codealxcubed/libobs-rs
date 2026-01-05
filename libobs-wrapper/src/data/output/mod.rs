@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use std::ptr;
 use std::sync::{Arc, RwLock};
 
-use crate::data::object::{inner_fn_update_settings, ObsObjectTrait, ObsObjectTraitSealed};
+use crate::data::object::{inner_fn_update_settings, ObsObjectTrait, ObsObjectTraitPrivate};
 use crate::data::ImmutableObsData;
 use crate::data::ObsDataPointers;
 use crate::runtime::ObsRuntime;
-use crate::unsafe_send::Sendable;
-use crate::utils::OutputInfo;
+use crate::unsafe_send::{Sendable, SmartPointerSendable};
+use crate::utils::{ObsDropGuard, OutputInfo};
 use crate::{impl_obs_drop, impl_signal_manager, run_with_obs};
 
 use crate::{
@@ -31,8 +31,11 @@ struct _ObsOutputDropGuard {
     runtime: ObsRuntime,
 }
 
+impl ObsDropGuard for _ObsOutputDropGuard {}
+
 impl_obs_drop!(_ObsOutputDropGuard, (output), move || unsafe {
-    libobs::obs_output_release(output);
+    // Safety: We are in the runtime and drop guards are always constructed from valid output pointers. Also this guard should be in an Arc, so no double free should happen.
+    libobs::obs_output_release(output.0);
 });
 
 #[derive(Debug, Clone)]
@@ -62,9 +65,6 @@ pub struct ObsOutputRef {
     /// Audio encoders attached to this output
     pub(crate) audio_encoders: Arc<RwLock<HashMap<usize, Arc<ObsAudioEncoder>>>>,
 
-    /// Pointer to the underlying OBS output
-    pub(crate) output: Sendable<*mut obs_output>,
-
     /// The type identifier of this output
     pub(crate) id: ObsString,
 
@@ -73,8 +73,8 @@ pub struct ObsOutputRef {
 
     pub(crate) runtime: ObsRuntime,
 
-    /// RAII guard that ensures proper cleanup when the output is dropped
-    _drop_guard: Arc<_ObsOutputDropGuard>,
+    /// Pointer to the underlying OBS output
+    pub(crate) output: SmartPointerSendable<*mut obs_output>,
 }
 
 impl ObsOutputTraitSealed for ObsOutputRef {
@@ -86,41 +86,67 @@ impl ObsOutputTraitSealed for ObsOutputRef {
             hotkey_data,
         } = output;
 
-        let settings_ptr = match settings.as_ref() {
-            Some(x) => x.as_ptr(),
-            None => Sendable(ptr::null_mut()),
-        };
-
-        let hotkey_data_ptr = match hotkey_data.as_ref() {
-            Some(x) => x.as_ptr(),
-            None => Sendable(ptr::null_mut()),
-        };
-
-        let id_ptr = id.as_ptr();
-        let name_ptr = name.as_ptr();
+        let settings_ptr = settings.as_ref().map(|x| x.as_ptr());
+        let hotkey_data_ptr = hotkey_data.as_ref().map(|x| x.as_ptr());
 
         let output = run_with_obs!(
             runtime,
-            (id_ptr, name_ptr, settings_ptr, hotkey_data_ptr),
+            (id, name, settings_ptr, hotkey_data_ptr),
             move || {
-                let output = unsafe {
-                    libobs::obs_output_create(id_ptr, name_ptr, settings_ptr, hotkey_data_ptr)
+                let settings_raw_ptr = match settings_ptr {
+                    Some(s) => s.get_ptr(),
+                    None => ptr::null_mut(),
                 };
 
-                Sendable(output)
-            }
-        )?;
+                let hotkey_data_raw_ptr = match hotkey_data_ptr {
+                    Some(h) => h.get_ptr(),
+                    None => ptr::null_mut(),
+                };
 
-        if output.0.is_null() {
-            return Err(ObsError::NullPointer);
-        }
+                let id_ptr = id.as_ptr().0;
+                let name_ptr = name.as_ptr().0;
+
+                let output = unsafe {
+                    // Safety: All pointers are valid because we are keeping them in this scope and because we are using smart pointers for ObsData
+                    libobs::obs_output_create(
+                        id_ptr,
+                        name_ptr,
+                        settings_raw_ptr,
+                        hotkey_data_raw_ptr,
+                    )
+                };
+
+                if output.is_null() {
+                    return Err(ObsError::NullPointer(None));
+                }
+
+                Ok(Sendable(output))
+            }
+        )??;
+
+        let output = SmartPointerSendable::new(
+            output.0,
+            Arc::new(_ObsOutputDropGuard {
+                output: output.clone(),
+                runtime: runtime.clone(),
+            }),
+        );
 
         // We are getting the settings from OBS because OBS will have updated it with default values.
-        let new_settings_ptr = run_with_obs!(runtime, (output), move || unsafe {
-            Sendable(libobs::obs_output_get_settings(output))
-        })?;
+        let new_settings_ptr = run_with_obs!(runtime, (output), move || {
+            let new_settings_ptr = unsafe {
+                // Safety: At this point, the output can't be released because we are using a SmartPointer.
+                libobs::obs_output_get_settings(output.get_ptr())
+            };
 
-        let settings = ImmutableObsData::from_raw(new_settings_ptr, runtime.clone());
+            if new_settings_ptr.is_null() {
+                return Err(ObsError::NullPointer(None));
+            }
+
+            Ok(Sendable(new_settings_ptr))
+        })??;
+
+        let settings = ImmutableObsData::from_raw_pointer(new_settings_ptr, runtime.clone());
 
         // We are creating the hotkey data here because even it is null, OBS would create it nonetheless.
         // https://github.com/obsproject/obs-studio/blob/d97e5ad820abcccf826faf897df4c7f511857cd4/libobs/obs.c#L2629
@@ -141,18 +167,13 @@ impl ObsOutputTraitSealed for ObsOutputRef {
             id,
             name,
 
-            _drop_guard: Arc::new(_ObsOutputDropGuard {
-                output,
-                runtime: runtime.clone(),
-            }),
-
             runtime,
             signal_manager: Arc::new(signal_manager),
         })
     }
 }
 
-impl ObsObjectTraitSealed for ObsOutputRef {
+impl ObsObjectTraitPrivate for ObsOutputRef {
     fn __internal_replace_settings(&self, settings: ImmutableObsData) -> Result<(), ObsError> {
         self.settings
             .write()
@@ -175,7 +196,7 @@ impl ObsObjectTraitSealed for ObsOutputRef {
     }
 }
 
-impl ObsObjectTrait for ObsOutputRef {
+impl ObsObjectTrait<*mut libobs::obs_output> for ObsOutputRef {
     fn name(&self) -> ObsString {
         self.name.clone()
     }
@@ -212,6 +233,10 @@ impl ObsObjectTrait for ObsOutputRef {
 
         inner_fn_update_settings!(self, libobs::obs_output_update, settings)
     }
+
+    fn as_ptr(&self) -> SmartPointerSendable<*mut obs_output> {
+        self.output.clone()
+    }
 }
 
 impl ObsOutputTrait for ObsOutputRef {
@@ -226,13 +251,12 @@ impl ObsOutputTrait for ObsOutputRef {
     fn audio_encoders(&self) -> &Arc<RwLock<HashMap<usize, Arc<ObsAudioEncoder>>>> {
         &self.audio_encoders
     }
-
-    fn as_ptr(&self) -> Sendable<*mut obs_output> {
-        self.output.clone()
-    }
 }
 
-impl_signal_manager!(|ptr| unsafe { libobs::obs_output_get_signal_handler(ptr) }, ObsOutputSignals for ObsOutputRef<*mut libobs::obs_output>, [
+impl_signal_manager!(|ptr: SmartPointerSendable<*mut libobs::obs_output>| unsafe {
+    // Safety: We are using a smart pointer, so it is fine
+    libobs::obs_output_get_signal_handler(ptr.get_ptr())
+}, ObsOutputSignals for ObsOutputRef<*mut libobs::obs_output>, [
     "start": {},
     "stop": {code: crate::enums::ObsOutputStopSignal},
     "pause": {},

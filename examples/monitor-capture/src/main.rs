@@ -1,12 +1,16 @@
 use libobs_simple::output::simple::ObsContextSimpleExt;
+#[cfg(target_os = "linux")]
+use libobs_simple::sources::ObsSourceBuilder;
 use libobs_wrapper::data::output::ObsOutputTrait;
 #[cfg(target_os = "linux")]
 use libobs_wrapper::logger::ObsLogger;
+#[cfg(windows)]
+use libobs_wrapper::scenes::SceneItemTrait;
 use libobs_wrapper::utils::StartupInfo;
 use libobs_wrapper::{context::ObsContext, utils::ObsPath};
 
 #[cfg(target_os = "linux")]
-use libobs_simple::sources::linux::LinuxGeneralScreenCapture;
+use libobs_simple::sources::linux::LinuxGeneralScreenCaptureBuilder;
 #[cfg(windows)]
 use libobs_simple::sources::windows::MonitorCaptureSourceBuilder;
 #[cfg(windows)]
@@ -41,24 +45,26 @@ fn main() -> anyhow::Result<()> {
     let monitors = MonitorCaptureSourceBuilder::get_monitors()?;
 
     #[cfg(windows)]
-    let mut monitor_capture = context
+    let mut monitor_item = context
         .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor Capture")?
         .set_monitor(&monitors[0])
         .set_capture_method(libobs_simple::sources::windows::ObsDisplayCaptureMethod::MethodDXGI)
         .add_to_scene(&mut scene)?;
 
+    #[cfg(windows)]
+    monitor_item.fit_source_to_screen()?;
+
     #[cfg(target_os = "linux")]
     {
         // You could also read a restore token here from a file
-        let screen_capture = LinuxGeneralScreenCapture::auto_detect(
-            context.runtime().clone(),
-            "Screen Capture",
-            None,
-        )
-        .map_err(|e| anyhow::anyhow!("Failed to create screen capture: {}", e))?;
+
+        use libobs_wrapper::data::ObsObjectBuilder;
+        let screen_capture =
+            LinuxGeneralScreenCaptureBuilder::new("Screen Capture", context.runtime().clone())
+                .map_err(|e| anyhow::anyhow!("Failed to create screen capture: {}", e))?;
 
         println!(
-            "Using {} capture method",
+            "Using {:?} capture method",
             screen_capture.capture_type_name()
         );
 
@@ -81,7 +87,8 @@ fn main() -> anyhow::Result<()> {
         thread::sleep(Duration::from_secs(5));
 
         // Switching monitor
-        monitor_capture
+        monitor_item
+            .inner_source_mut()
             .create_updater()?
             .set_monitor(&monitors[1 % monitors.len()])
             .update()?;

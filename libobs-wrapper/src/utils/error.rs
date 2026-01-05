@@ -24,7 +24,7 @@ pub enum ObsError {
     /// The function returned a null pointer, often indicating
     /// an error with creating the object of the requested
     /// pointer.
-    NullPointer,
+    NullPointer(Option<String>),
     OutputAlreadyActive,
     OutputStartFailure(Option<String>),
     OutputStopFailure(Option<String>),
@@ -74,6 +74,9 @@ pub enum ObsError {
     /// This error should NEVER occur. If you are not using the runtime manually or have the "enable_runtime" feature enabled
     /// then please report this to the crate maintainer as this indicates a bug in the crate.
     RuntimeOutsideThread,
+
+    /// A filter was already applied to a source
+    FilterAlreadyApplied,
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -88,7 +91,7 @@ impl Display for ObsError {
             ObsError::ResetVideoFailure(status) => write!(f, "Could not reset obs video. Status: {:?}", status),
             ObsError::ResetVideoFailureGraphicsModule => write!(f, "Unable to reset video because the program attempted to change the graphics module. This is a bug!"),
             ObsError::ResetVideoFailureOutputActive => write!(f, "Unable to reset video because some outputs were still active."),
-            ObsError::NullPointer => write!(f, "The function returned a null pointer, often indicating an error with creating the object of the requested pointer."),
+            ObsError::NullPointer(e) => write!(f, "The function returned a null pointer, often indicating an error with creating the object of the requested pointer. Details: {:?}", e),
             ObsError::OutputAlreadyActive => write!(f, "Output is already active."),
             ObsError::OutputStartFailure(s) => write!(f, "Output failed to start. Error is {:?}", s),
             ObsError::OutputStopFailure(s) => write!(f, "Output failed to stop. Error is {:?}", s),
@@ -117,6 +120,7 @@ impl Display for ObsError {
             ObsError::RuntimeOutsideThread => write!(f, "Attempted to call a OBS runtime function from outside the OBS thread. This is a bug in the crate!"),
             #[cfg(not(feature="enable_runtime"))]
             ObsError::RuntimeOutsideThread => write!(f, "Attempted to call a OBS runtime function from outside the OBS thread. Make sure that you do not use any OBS struct from a different thread than the one where the ObsContext was initialized. THIS BUG WILL CAUSE MEMORY CORRUPTION OR DEADLOCKS!"),
+            ObsError::FilterAlreadyApplied => write!(f, "Filter was applied already."),
         }
     }
 }

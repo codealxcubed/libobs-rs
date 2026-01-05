@@ -6,7 +6,7 @@ use crate::{
     data::{ObsDataGetters, ObsDataPointers},
     run_with_obs,
     runtime::ObsRuntime,
-    unsafe_send::Sendable,
+    unsafe_send::{Sendable, SmartPointerSendable},
     utils::ObsError,
 };
 
@@ -16,48 +16,66 @@ use super::{ObsData, _ObsDataDropGuard};
 /// Immutable wrapper around obs_data_t to be prevent modification and to be used in creation of other objects.
 /// This should not be updated directly using the pointer, but instead through the corresponding update methods on the holder of this data.
 pub struct ImmutableObsData {
-    ptr: Sendable<*mut obs_data_t>,
     runtime: ObsRuntime,
-    _drop_guard: Arc<_ObsDataDropGuard>,
+    ptr: SmartPointerSendable<*mut obs_data_t>,
 }
 
 impl ImmutableObsData {
     pub fn new(runtime: &ObsRuntime) -> Result<Self, ObsError> {
         let ptr = run_with_obs!(runtime, move || unsafe {
+            // Safety: We are in the runtime, so creating new obs_data_t is safe.
             Sendable(libobs::obs_data_create())
         })?;
 
-        Ok(ImmutableObsData {
-            ptr: ptr.clone(),
+        let drop_guard = Arc::new(_ObsDataDropGuard {
+            data_ptr: ptr.clone(),
             runtime: runtime.clone(),
-            _drop_guard: Arc::new(_ObsDataDropGuard {
-                obs_data: ptr,
-                runtime: runtime.clone(),
-            }),
+        });
+
+        let ptr = SmartPointerSendable::new(ptr.0, drop_guard);
+        Ok(ImmutableObsData {
+            ptr,
+            runtime: runtime.clone(),
         })
     }
 
-    pub fn from_raw(data: Sendable<*mut obs_data_t>, runtime: ObsRuntime) -> Self {
+    pub fn from_raw_pointer(data: Sendable<*mut obs_data_t>, runtime: ObsRuntime) -> Self {
         ImmutableObsData {
-            ptr: data.clone(),
-            runtime: runtime.clone(),
-            _drop_guard: Arc::new(_ObsDataDropGuard {
-                obs_data: data.clone(),
-                runtime,
-            }),
+            ptr: SmartPointerSendable::new(
+                data.0,
+                Arc::new(_ObsDataDropGuard {
+                    data_ptr: data.clone(),
+                    runtime: runtime.clone(),
+                }),
+            ),
+            runtime,
         }
     }
 
     pub fn to_mutable(&self) -> Result<ObsData, ObsError> {
         let ptr = self.ptr.clone();
-        let json = run_with_obs!(self.runtime, (ptr), move || unsafe {
-            Sendable(libobs::obs_data_get_json(ptr))
-        })?;
+        let json = run_with_obs!(self.runtime, (ptr), move || {
+            let json_ptr = unsafe {
+                // Safety: We are making sure by using a SmartPointer, that this pointer is valid during the call.
+                libobs::obs_data_get_json(ptr.get_ptr())
+            };
 
-        let json = unsafe { CStr::from_ptr(json.0) }
+            if json_ptr.is_null() {
+                return Err(ObsError::NullPointer(Some(
+                    "Couldn't get json representation of OBS data".into(),
+                )));
+            }
+
+            let json = unsafe {
+                // Safety: We made sure the json ptr is valid because it is not null.
+                CStr::from_ptr(json_ptr)
+            }
             .to_str()
             .map_err(|_| ObsError::JsonParseError)?
             .to_string();
+
+            Ok(json)
+        })??;
 
         ObsData::from_json(json.as_ref(), self.runtime.clone())
     }
@@ -68,7 +86,7 @@ impl ObsDataPointers for ImmutableObsData {
         &self.runtime
     }
 
-    fn as_ptr(&self) -> Sendable<*mut obs_data_t> {
+    fn as_ptr(&self) -> SmartPointerSendable<*mut obs_data_t> {
         self.ptr.clone()
     }
 }
@@ -76,15 +94,10 @@ impl ObsDataPointers for ImmutableObsData {
 impl ObsDataGetters for ImmutableObsData {}
 
 impl From<ObsData> for ImmutableObsData {
-    fn from(mut data: ObsData) -> Self {
-        // Set to null pointer to prevent double free
-        let ptr = data.obs_data.0;
-
-        data.obs_data.0 = std::ptr::null_mut();
+    fn from(data: ObsData) -> Self {
         ImmutableObsData {
-            ptr: Sendable(ptr),
+            ptr: data.as_ptr(),
             runtime: data.runtime.clone(),
-            _drop_guard: data._drop_guard,
         }
     }
 }

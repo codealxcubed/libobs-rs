@@ -22,10 +22,12 @@ pub trait ObsObjectBuilder {
     where
         Self: Sized;
 
+    fn runtime(&self) -> &ObsRuntime;
+
     /// Returns the name of the source.
     fn get_name(&self) -> ObsString;
 
-    fn build(self) -> Result<ObjectInfo, ObsError>
+    fn object_build(self) -> Result<ObjectInfo, ObsError>
     where
         Self: Sized;
 
@@ -39,8 +41,8 @@ pub trait ObsObjectBuilder {
     fn get_id() -> ObsString;
 }
 
-pub trait ObsObjectUpdater<'a> {
-    type ToUpdate: ObsObjectTrait;
+pub trait ObsObjectUpdater<'a, K: Clone> {
+    type ToUpdate: ObsObjectTrait<K>;
     fn create_update(
         runtime: ObsRuntime,
         updatable: &'a mut Self::ToUpdate,
@@ -52,6 +54,8 @@ pub trait ObsObjectUpdater<'a> {
     fn get_settings_updater(&mut self) -> &mut ObsDataUpdater;
 
     fn update(self) -> Result<(), ObsError>;
+
+    fn runtime(&self) -> &ObsRuntime;
 
     /// Returns the ID of the object
     fn get_id() -> ObsString;
