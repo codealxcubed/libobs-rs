@@ -74,8 +74,6 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
             type ToUpdate = #updatable_type;
 
             fn create_update(runtime: libobs_wrapper::runtime::ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, libobs_wrapper::utils::ObsError> {
-                use libobs_wrapper::utils::traits::ObsUpdatable;
-
                 let source_id = Self::get_id();
                 let flags = unsafe {
                     libobs::obs_get_source_output_flags(source_id.as_ptr().0)
@@ -85,8 +83,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
                     return Err(libobs_wrapper::utils::ObsError::SourceNotAvailable(source_id.to_string()))
                 }
 
-                let current_settings = updatable.get_settings()?;
-                let mut settings = current_settings.to_mutable()?;
+                let mut settings = libobs_wrapper::data::ObsData::new(runtime.clone())?;
 
                 Ok(Self {
                     #(#struct_initializers,)*
