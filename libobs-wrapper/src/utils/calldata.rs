@@ -169,6 +169,6 @@ impl ObsCalldataExt for ObsContext {
         proc_handler: &Sendable<*mut proc_handler_t>,
         name: T,
     ) -> Result<CalldataWrapper, ObsError> {
-        self.runtime.call_proc_handler(proc_handler, name)
+        self.runtime().call_proc_handler(proc_handler, name)
     }
 }

@@ -8,12 +8,20 @@ use crate::{
 
 use super::updater::ObsDataUpdater;
 
+/// Should be implemented for any enum that can be represented as a String.
+///
+/// This is mostly used for `ObsSourceBuilders`.
 pub trait StringEnum {
     fn to_str(&self) -> &str;
 }
 
-//TODO Use generics to make the build function return a trait rather than a struct
-/// Trait for building OBS sources.
+/// Trait for building OBS objects.
+/// This can range from building audio encoders to building scenes, every ObsObject
+/// has the same underlying properties:
+/// - name
+/// - id
+/// - hotkey_data
+/// - settings
 pub trait ObsObjectBuilder {
     fn new<T: Into<ObsString> + Send + Sync>(
         name: T,
@@ -41,6 +49,9 @@ pub trait ObsObjectBuilder {
     fn get_id() -> ObsString;
 }
 
+/// A trait that is used to represent any struct than can update an OBS object.
+/// This can be for example a ´WindowSourceUpdater´, which updates the settings of the `WindowSourceRef`, when
+/// the `update` method is called.
 pub trait ObsObjectUpdater<'a, K: Clone> {
     type ToUpdate: ObsObjectTrait<K>;
     fn create_update(

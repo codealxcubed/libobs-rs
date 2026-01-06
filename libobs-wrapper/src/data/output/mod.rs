@@ -49,32 +49,36 @@ impl_obs_drop!(_ObsOutputDropGuard, (output), move || unsafe {
 ///
 /// The output is associated with video and audio encoders that convert
 /// raw media to the required format before sending/storing.
+///
+/// If encoders are attached to this struct, they are stored internally, so they will not get removed
+/// As of right now, there is no way to remove the encoders again, rather you'll need to replace them with another encoder or drop this struct and
+/// recreate a output.
 pub struct ObsOutputRef {
     /// Disconnect signals first
-    pub(crate) signal_manager: Arc<ObsOutputSignals>,
+    signal_manager: Arc<ObsOutputSignals>,
 
     /// Settings for the output
-    pub(crate) settings: Arc<RwLock<ImmutableObsData>>,
+    settings: Arc<RwLock<ImmutableObsData>>,
 
     /// Hotkey configuration data for the output
-    pub(crate) hotkey_data: Arc<RwLock<ImmutableObsData>>,
+    hotkey_data: Arc<RwLock<ImmutableObsData>>,
 
     /// Video encoders attached to this output
-    pub(crate) curr_video_encoder: Arc<RwLock<Option<Arc<ObsVideoEncoder>>>>,
+    curr_video_encoder: Arc<RwLock<Option<Arc<ObsVideoEncoder>>>>,
 
     /// Audio encoders attached to this output
-    pub(crate) audio_encoders: Arc<RwLock<HashMap<usize, Arc<ObsAudioEncoder>>>>,
+    audio_encoders: Arc<RwLock<HashMap<usize, Arc<ObsAudioEncoder>>>>,
 
     /// The type identifier of this output
-    pub(crate) id: ObsString,
+    id: ObsString,
 
     /// The unique name of this output
-    pub(crate) name: ObsString,
+    name: ObsString,
 
-    pub(crate) runtime: ObsRuntime,
+    runtime: ObsRuntime,
 
     /// Pointer to the underlying OBS output
-    pub(crate) output: SmartPointerSendable<*mut obs_output>,
+    output: SmartPointerSendable<*mut obs_output>,
 }
 
 impl ObsOutputTraitSealed for ObsOutputRef {

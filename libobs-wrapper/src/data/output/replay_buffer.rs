@@ -22,19 +22,16 @@ use crate::{
 #[derive(Debug, Clone)]
 /// A reference to an OBS output.
 ///
-/// This struct represents an output in OBS, which is responsible for
-/// outputting encoded audio and video data to a destination such as:
-/// - A file (recording)
-/// - A streaming service (RTMP, etc.)
-/// - A replay buffer
+/// This struct is used specifically for the replay buffer to manage saving the buffer to a file
+/// and configuring special settings, which are specific to the replay buffer
 ///
 /// The output is associated with video and audio encoders that convert
 /// raw media to the required format before sending/storing.
 pub struct ObsReplayBufferOutputRef {
     /// Disconnect signals first
-    pub(crate) replay_signal_manager: Arc<ObsReplayOutputSignals>,
+    replay_signal_manager: Arc<ObsReplayOutputSignals>,
 
-    pub(crate) output: ObsOutputRef,
+    output: ObsOutputRef,
 }
 
 impl ObsOutputTraitSealed for ObsReplayBufferOutputRef {

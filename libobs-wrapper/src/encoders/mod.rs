@@ -1,3 +1,10 @@
+//! This module contains video- and audio-encoders.
+//! In simple terms, you need a video and audio encoder, so a proper mp4
+//! file can get written to disk (with video and audio).
+//! If you are unsure which encoder to use, you might as well
+//! take a look at the [libobs-simple](https://crates.io/crates/libobs-simple) crate for
+//! a output that has all needed encoders attached already.
+
 use crate::{
     context::ObsContext,
     enums::{ObsEncoderType, OsEnumType},
@@ -92,14 +99,14 @@ impl ObsContextEncoders for ObsContext {
     }
 
     fn available_audio_encoders(&self) -> Result<Vec<ObsAudioEncoderBuilder>, ObsError> {
-        Ok(get_encoders_raw(ObsEncoderType::Audio, &self.runtime)?
+        Ok(get_encoders_raw(ObsEncoderType::Audio, self.runtime())?
             .into_iter()
             .map(|x| ObsAudioEncoderBuilder::new(self.clone(), &x))
             .collect::<Vec<_>>())
     }
 
     fn available_video_encoders(&self) -> Result<Vec<ObsVideoEncoderBuilder>, ObsError> {
-        Ok(get_encoders_raw(ObsEncoderType::Video, &self.runtime)?
+        Ok(get_encoders_raw(ObsEncoderType::Video, self.runtime())?
             .into_iter()
             .map(|x| ObsVideoEncoderBuilder::new(self.clone(), &x))
             .collect::<Vec<_>>())

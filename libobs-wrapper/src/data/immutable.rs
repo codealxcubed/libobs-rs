@@ -14,7 +14,10 @@ use super::{ObsData, _ObsDataDropGuard};
 
 #[derive(Clone, Debug)]
 /// Immutable wrapper around obs_data_t to be prevent modification and to be used in creation of other objects.
-/// This should not be updated directly using the pointer, but instead through the corresponding update methods on the holder of this data.
+///
+/// **DO NOT** update this data using the pointer directly. If you want to change the data,
+/// use the corresponding update methods of the struct you want to update or turn this struct into
+/// a `ObsData` object by using the `to_mutable` method.
 pub struct ImmutableObsData {
     runtime: ObsRuntime,
     ptr: SmartPointerSendable<*mut obs_data_t>,

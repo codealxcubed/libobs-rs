@@ -96,25 +96,25 @@ pub struct ObsContext {
     /// early freeing.
     #[allow(dead_code)]
     #[get_mut]
-    pub(crate) outputs: GeneralStorage<dyn ObsOutputTrait>,
+    outputs: GeneralStorage<dyn ObsOutputTrait>,
 
     #[get_mut]
-    pub(crate) scenes: Arc<RwLock<Vec<ObsSceneRef>>>,
+    scenes: Arc<RwLock<Vec<ObsSceneRef>>>,
 
     // Filters are on the level of the context because they are not scene-specific
     #[get_mut]
-    pub(crate) filters: Arc<RwLock<Vec<ObsFilterRef>>>,
+    filters: Arc<RwLock<Vec<ObsFilterRef>>>,
 
     #[skip_getter]
-    pub(crate) _obs_modules: Arc<ObsModules>,
+    _obs_modules: Arc<ObsModules>,
 
     /// This struct must be the last element which makes sure
     /// that everything else has been freed already before the runtime
     /// shuts down
-    pub(crate) runtime: ObsRuntime,
+    runtime: ObsRuntime,
 
     #[cfg(target_os = "linux")]
-    pub(crate) glib_loop: Arc<RwLock<Option<crate::utils::linux::LinuxGlibLoop>>>,
+    glib_loop: Arc<RwLock<Option<crate::utils::linux::LinuxGlibLoop>>>,
 }
 
 impl ObsContext {

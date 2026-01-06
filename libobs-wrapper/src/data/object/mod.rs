@@ -48,8 +48,7 @@ trait_with_optional_send_sync! {
 
 #[allow(private_bounds)]
 /// Trait representing an OBS object.
-///
-/// Hashing for this trait is automatically done by comparing the underlying raw pointer addresses.
+/// A OBs object has an id, a name, `settings` and `hotkey_data`.
 pub trait ObsObjectTrait<K: Clone>: ObsObjectClone<K> + ObsObjectTraitPrivate {
     fn runtime(&self) -> &ObsRuntime;
     fn settings(&self) -> Result<ImmutableObsData, ObsError>;

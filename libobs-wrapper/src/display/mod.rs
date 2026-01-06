@@ -1,5 +1,5 @@
-//! For this display method to work, another preview window has to be created in order to create a swapchain
-//! This is because the main window renderer is already handled by other processes
+//! This module is used to create a `OBS display` which you can use to preview the
+//! output of your recording.
 
 mod creation_data;
 mod enums;
@@ -25,10 +25,12 @@ use std::{
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
-//TODO: This has to be checked again, I'm unsure with pinning and draw callbacks from OBS
-///
-/// This is a wrapper around the obs_display struct and contains direct memory references.
-/// You should ALWAYS use the context to get to this struct, and as said NEVER store it.
+/// You can use the `ObsContext` to create this struct. This struct is stored in the
+/// `ObsContext` itself and the display is removed if every instance of this struct is dropped
+/// (and you have called `remove_display` on the `ObsContext`).
+// Note to developers: This struct does not need to be pinned to Memory any longer.
+// because we are using a id and then using a RwLock (`DISPLAY_POSITIONS`) for managing display data
+// in the render context.
 pub struct ObsDisplayRef {
     id: usize,
 

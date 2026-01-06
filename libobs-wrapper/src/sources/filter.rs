@@ -11,13 +11,15 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-/// This is essentially the same as the OsSourceRef but we want to make sure
-/// the dev doesn't confuse a filter with a source.
+// This is essentially the same as the OsSourceRef but we want to make sure
+// the dev doesn't confuse a filter with a source.
 pub struct ObsFilterRef {
     inner: ObsSourceRef,
 }
 
 impl ObsFilterRef {
+    /// Creates a new OBS filter, this is a more advanced usage as you'll have to specify
+    /// the id, name, settings and hotkey_data yourself. This will be easier in the future...
     pub fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
         id: T,
         name: K,

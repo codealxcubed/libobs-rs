@@ -1,5 +1,6 @@
 #[doc(hidden)]
 #[macro_export]
+/// Implements every method of the ObsOutputTrait and forwards it to an internal variable.
 macro_rules! forward_obs_output_impl {
     ($struct_name: ident, $var_name: ident) => {
         impl $crate::data::output::ObsOutputTrait for $struct_name {

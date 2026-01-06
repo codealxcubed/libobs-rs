@@ -1,3 +1,5 @@
+//! Scene items essentially hold the transform information and the source in a scene itself.
+//! They are specific to the scene which they were created in.
 mod traits;
 pub use traits::SceneItemExtSceneTrait;
 
@@ -33,6 +35,9 @@ impl_obs_drop!(_ObsSceneItemDropGuard, (scene_item), move || unsafe {
 });
 
 #[derive(Debug, Clone)]
+/// Holds the specific source that was added to the scene and its scene item.
+/// If this struct is attached to the scene, it'll not be dropped as the scene
+/// internally stores this struct, thus the source will also not be dropped.
 pub struct ObsSceneItemRef<T: ObsSourceTrait + Clone> {
     underlying_source: T,
     scene_item_ptr: SmartPointerSendable<*mut obs_scene_item>,

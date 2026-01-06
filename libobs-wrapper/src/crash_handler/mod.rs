@@ -1,3 +1,7 @@
+//! Contains a default crash handler that is attached by default to the ObsContext.
+//! By default this will handle crashes just by printing them out to console, if the `dialog-crash-handler` feature is disabled.
+//! If you want to implement your own crash handler, make sure that you do the least amount of work possible and access as few global variables as you can,
+//! as it is quite unstable if libobs has crashed.
 use std::{ffi::c_void, sync::Mutex};
 
 use lazy_static::lazy_static;
@@ -44,7 +48,7 @@ impl ObsCrashHandler for ConsoleCrashHandler {
 
 lazy_static! {
     /// We are using this as global variable because there can only be one obs context
-    pub static ref CRASH_HANDLER: Mutex<Box<dyn ObsCrashHandler>> = {
+    static ref CRASH_HANDLER: Mutex<Box<dyn ObsCrashHandler>> = {
         #[cfg(feature="dialog_crash_handler")]
         {
             Mutex::new(Box::new(dialog::DialogCrashHandler::new()))

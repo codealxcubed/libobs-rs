@@ -14,9 +14,14 @@ pub enum ObsDataChange {
 }
 
 #[derive(Debug)]
-/// Important: Make sure to call `update()` after setting the values.
+/// This struct is used to update the ObsData in bulk, rather than having to call the set_string
+/// methods all the time.
+/// This reduces the load to the runtime, as only one closure has to run on the OBS runtime once,
+/// rather than multiple operations requiring multiple closures to be run on the OBs runtime.
+/// Important: Make sure to call `apply()` after setting the values.
+///
 /// This will apply the changes to the `ObsData` object.
-#[must_use = "The `update()` method must be called to apply changes."]
+#[must_use = "The `apply()` method must be called to apply changes."]
 pub struct ObsDataUpdater {
     changes: Vec<ObsDataChange>,
     runtime: ObsRuntime,

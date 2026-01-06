@@ -1,3 +1,5 @@
+//! Signals can be emitted by sources attached to a scene. You may implement your own signal manager
+//! by using the `impl_signal_manager` macro, but you'll need to make sure that you know which signals are emitted and what structure they have.
 mod handler;
 mod traits;
 

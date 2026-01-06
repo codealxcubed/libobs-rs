@@ -18,6 +18,11 @@ use crate::{
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
+/// Represents a VideoEncoder. The VideoEncoder is removed,
+/// if there are no references to this struct left.
+/// If you attach this video encoder to a `ObsOutputRef`, it is stored internally
+/// so you can safely drop this struct, if attached to the `ObsOutputRef`.
+/// If not attached to the output, it'll just remove itself again.
 pub struct ObsVideoEncoder {
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,

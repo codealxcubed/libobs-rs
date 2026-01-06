@@ -1,3 +1,13 @@
+//! This module contains every struct related to storing data in OBS.
+//! There are two important structs:
+//! 1. `ObsData`
+//! - This struct holds a mutable reference to a ObsData, so you can set a string, ints and similar
+//! - You can convert this ObsData object to a immutable reference
+//! - Cloning this ObsData struct is very memory intensive, as the ObsData will completely clone every member of this data.
+//! 2. `ImmutableObsData`
+//! - This structs holds, as the name might suggest, an immutable reference to ObsData.
+//! - The data inside this struct can not be changed and is intended for read-only.
+//! - You can turn this ImmutableObsData into a writable `ObsData` struct again, but this will internally clone the data and not affect the `ImmutableObsData` itself.
 use std::{ffi::CString, sync::Arc};
 
 use crate::{

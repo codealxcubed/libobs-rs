@@ -1,3 +1,8 @@
+//! This module is important, as it holds the scene items and scenes themselves.
+//! Scenes are essential, as they hold the sources which are then being rendered in the output.
+//! You'll need to add sources to the scenes if you want to have an output that is not black.
+//! You can also use the `libobs-simple` crate to simplify the creation of ObsSourceRefs.
+
 mod transform_info;
 pub use transform_info::*;
 
@@ -32,6 +37,7 @@ struct _NoOpDropGuard;
 impl ObsDropGuard for _NoOpDropGuard {}
 
 #[derive(Debug, Clone)]
+/// This struct holds every ObsSourceRef that is attached to the scene by using `add_source`.
 pub struct ObsSceneRef {
     name: ObsString,
     attached_scene_items:

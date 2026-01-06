@@ -1,3 +1,9 @@
+//! This module is used to handle properties in OBS.
+//! Properties essentially tell you what settings for example a output accepts, by using the ´get_properties´ method
+//! on the according struct.
+//! This lets you get all properties at runtime, rather than having to rely on preset values, which
+//! can be useful if you want to let the user adust specific system dependent settings on for example an encoder.
+
 mod enums;
 mod macros;
 pub mod prop_impl;

@@ -18,6 +18,9 @@ use crate::{
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
+/// Represents a audio encoder. If this struct is not referenced anywhere anymore,
+/// this Audio Encoder will get removed. Note: The output internally stores the ObsAudioEncoder, once it was
+/// added to the output
 pub struct ObsAudioEncoder {
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,

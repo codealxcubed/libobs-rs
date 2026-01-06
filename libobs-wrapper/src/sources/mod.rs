@@ -1,3 +1,6 @@
+//! This module holds everything related to sources.
+//! A source renders specific content to the scene, which is then processed by the ObsOutputRef and for example
+//! written to a file using encoders.
 mod builder;
 pub use builder::*;
 

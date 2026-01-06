@@ -1,3 +1,4 @@
+//! Contains all important enums for this crate
 use core::fmt;
 use std::fmt::Display;
 

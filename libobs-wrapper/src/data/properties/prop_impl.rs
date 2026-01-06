@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    data::{output::ObsOutputRef, properties::_ObsPropertiesDropGuard},
+    data::{object::ObsObjectTrait, output::ObsOutputRef, properties::_ObsPropertiesDropGuard},
     run_with_obs,
     runtime::ObsRuntime,
     sources::ObsSourceTrait,
@@ -79,7 +79,7 @@ impl<K: ObsSourceTrait> ObsPropertyObjectPrivate for K {
 impl ObsPropertyObject for ObsOutputRef {
     fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError> {
         let properties_raw = self.get_properties_raw()?;
-        property_ptr_to_struct(properties_raw, self.runtime.clone())
+        property_ptr_to_struct(properties_raw, self.runtime().clone())
     }
 }
 
@@ -87,8 +87,8 @@ impl ObsPropertyObjectPrivate for ObsOutputRef {
     fn get_properties_raw(
         &self,
     ) -> Result<SmartPointerSendable<*mut libobs::obs_properties_t>, ObsError> {
-        let output_ptr = self.output.clone();
-        let ptr = run_with_obs!(self.runtime, (output_ptr), move || {
+        let output_ptr = self.as_ptr().clone();
+        let ptr = run_with_obs!(self.runtime(), (output_ptr), move || {
             let property_ptr = unsafe {
                 // Safety: Safe because of smart pointer
                 libobs::obs_output_properties(output_ptr.get_ptr())
@@ -103,7 +103,7 @@ impl ObsPropertyObjectPrivate for ObsOutputRef {
 
         let drop_guard = Arc::new(_ObsPropertiesDropGuard {
             properties: ptr.clone(),
-            runtime: self.runtime.clone(),
+            runtime: self.runtime().clone(),
         });
 
         Ok(SmartPointerSendable::new(ptr.0, drop_guard))
