@@ -1,7 +1,7 @@
 //! Contains linux specific bindings to x11 and wayland
 
-use std::{fs, os::raw::c_char};
 use std::path::PathBuf;
+use std::{fs, os::raw::c_char};
 
 extern "C" {
     // X11 functions
@@ -111,7 +111,9 @@ pub(crate) fn find_obs_binary() -> PathBuf {
         }
     }
 
-    preferred.or(fallback).unwrap_or_else(|| PathBuf::from("/usr/bin/obs"))
+    preferred
+        .or(fallback)
+        .unwrap_or_else(|| PathBuf::from("/usr/bin/obs"))
 }
 
 pub(crate) fn get_linux_opengl_lib_name() -> String {
