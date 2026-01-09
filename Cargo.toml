@@ -15,9 +15,9 @@ exclude = ["scripts/test_assets/test_cargo_obs_build", "scripts/test_assets/test
 [workspace.dependencies]
 # Workspace members
 libobs = { path = "./libobs", version = "5" }
-libobs-wrapper = { path = "./libobs-wrapper", version = "8", default-features = false }
+libobs-wrapper = { path = "./libobs-wrapper", version = "9", default-features = false }
 libobs-simple-macro = { path = "./libobs-simple-macro", version = "7" }
-libobs-simple = { path = "./libobs-simple", version = "7" }
+libobs-simple = { path = "./libobs-simple", version = "8" }
 libobs-window-helper = { path = "./libobs-window-helper", version = "0.4" }
 libobs-bootstrapper = { path = "./libobs-bootstrapper", version = "0.3" }
 
@@ -39,7 +39,7 @@ serde_json = "1"
 
 # Async, networking, crypto
 tokio = { version = "1.38", default-features = false }  # Minimum version with create_new and async coroutine support
-reqwest = "0.12"
+reqwest = "0.13"
 sha2 = "0.10"
 
 # Platform/FFI/windowing
@@ -53,3 +53,8 @@ windows = "0.62"
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+
+[workspace.metadata.dylint]
+libraries = [
+    { git = "https://github.com/libobs-rs/libobs-rs-lints", rev ="c8b7a7f29b8f5a8b6ef1cd3134cdf2d47635265d"  },
+]

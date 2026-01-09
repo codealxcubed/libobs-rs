@@ -11,30 +11,27 @@ use std::{
 use crate::{
     data::{
         object::ObsObjectTrait,
-        output::{ObsOutputRef, ObsOutputTrait, ObsOutputTraitSealed},
+        output::{ObsOutputRef, ObsOutputTraitSealed},
     },
     forward_obs_object_impl, forward_obs_output_impl, impl_signal_manager, run_with_obs,
     runtime::ObsRuntime,
-    unsafe_send::Sendable,
+    unsafe_send::{Sendable, SmartPointerSendable},
     utils::{ObsCalldataExt, ObsError, ObsString, OutputInfo},
 };
 
 #[derive(Debug, Clone)]
 /// A reference to an OBS output.
 ///
-/// This struct represents an output in OBS, which is responsible for
-/// outputting encoded audio and video data to a destination such as:
-/// - A file (recording)
-/// - A streaming service (RTMP, etc.)
-/// - A replay buffer
+/// This struct is used specifically for the replay buffer to manage saving the buffer to a file
+/// and configuring special settings, which are specific to the replay buffer
 ///
 /// The output is associated with video and audio encoders that convert
 /// raw media to the required format before sending/storing.
 pub struct ObsReplayBufferOutputRef {
     /// Disconnect signals first
-    pub(crate) replay_signal_manager: Arc<ObsReplayOutputSignals>,
+    replay_signal_manager: Arc<ObsReplayOutputSignals>,
 
-    pub(crate) output: ObsOutputRef,
+    output: ObsOutputRef,
 }
 
 impl ObsOutputTraitSealed for ObsReplayBufferOutputRef {
@@ -50,10 +47,15 @@ impl ObsOutputTraitSealed for ObsReplayBufferOutputRef {
     }
 }
 
-forward_obs_object_impl!(ObsReplayBufferOutputRef, output);
+forward_obs_object_impl!(ObsReplayBufferOutputRef, output, *mut libobs::obs_output);
 forward_obs_output_impl!(ObsReplayBufferOutputRef, output);
 
-impl_signal_manager!(|ptr| unsafe { libobs::obs_output_get_signal_handler(ptr) }, ObsReplayOutputSignals for ObsReplayOutputRef<*mut libobs::obs_output>, [
+impl_signal_manager!(|ptr: SmartPointerSendable<*mut libobs::obs_output>| {
+    unsafe {
+        // Safety: Again, it carries a reference of the drop guard so we must have a valid pointer
+        libobs::obs_output_get_signal_handler(ptr.get_ptr())
+    }
+}, ObsReplayOutputSignals for *mut libobs::obs_output, [
     "saved": {}
 ]);
 
@@ -83,7 +85,8 @@ impl ObsReplayBufferOutputRef {
 
         log::trace!("Getting procedure handler for replay buffer output...");
         let proc_handler = run_with_obs!(self.runtime().clone(), (output_ptr), move || {
-            let ph = unsafe { libobs::obs_output_get_proc_handler(output_ptr) };
+            // Safety: At this point, output_ptr MUST be a valid pointer as we haven't released the output yet.
+            let ph = unsafe { libobs::obs_output_get_proc_handler(output_ptr.get_ptr()) };
             if ph.is_null() {
                 return Err(ObsError::OutputSaveBufferFailure(
                     "Failed to get proc handler.".to_string(),
@@ -93,7 +96,8 @@ impl ObsReplayBufferOutputRef {
         })??;
 
         log::trace!("Calling 'save' procedure on replay buffer output...");
-        self.runtime().call_proc_handler(&proc_handler, "save")?;
+        // Safety: we know that the proc handler is valid because we got it from OBS earlier
+        unsafe { self.runtime().call_proc_handler(&proc_handler, "save")? };
 
         log::trace!("Waiting for 'saved' signal from replay buffer output...");
         self.replay_signals()
@@ -106,9 +110,11 @@ impl ObsReplayBufferOutputRef {
             })?;
 
         log::trace!("Retrieving last replay path from replay buffer output...");
-        let mut calldata = self
-            .runtime()
-            .call_proc_handler(&proc_handler, "get_last_replay")?;
+        // Safety: We know that the proc handler is valid because we got it from OBS earlier
+        let mut calldata = unsafe {
+            self.runtime()
+                .call_proc_handler(&proc_handler, "get_last_replay")?
+        };
 
         log::trace!("Extracting path from calldata...");
         let path = calldata.get_string("path")?;

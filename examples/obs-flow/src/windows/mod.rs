@@ -1,5 +1,7 @@
 // Example demonstrating useful flows using libobs-wrapper
 
+mod either_source;
+
 use std::{thread::sleep, time::Duration};
 
 use libobs_simple::{
@@ -12,14 +14,15 @@ use libobs_simple::{
 use libobs_wrapper::{
     context::ObsContext,
     data::{
-        ObsDataSetters,
-        object::ObsObjectTrait,
-        output::ObsOutputTrait,
-        properties::{ObsProperty, ObsPropertyObject, types::ObsListItemValue},
+        ObsDataSetters, object::ObsObjectTrait, output::ObsOutputTrait,
+        properties::ObsPropertyObject,
     },
+    scenes::{SceneItemExtSceneTrait, SceneItemTrait},
     sources::ObsSourceRef,
     utils::{ObsPath, StartupInfo},
 };
+
+use crate::windows::either_source::either_source;
 
 pub fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -29,6 +32,8 @@ pub fn main() -> anyhow::Result<()> {
 
     // Create a new main scene
     let mut scene = context.scene("MAIN", Some(0))?;
+
+    either_source(context.clone(), scene.clone())?;
 
     // Add a output
     let mut output = context
@@ -40,11 +45,19 @@ pub fn main() -> anyhow::Result<()> {
         .build()?;
 
     // Read all the properties of source type or encoders
-    let source = context
-        .source_builder::<MonitorCaptureSourceBuilder, _>("Display name")?
-        .add_to_scene(&mut scene)?;
+    {
+        // You can also just create a source and remove it instantly again
+        let scene_item = context
+            .source_builder::<MonitorCaptureSourceBuilder, _>("Display name")?
+            .add_to_scene(&mut scene)?;
 
-    let properties = ObsSourceRef::get_properties_by_id("monitor_capture", context.runtime())?;
+        scene.remove_scene_item(scene_item)?;
+    }
+
+    // dropping (and removing) source again for demo purposes
+
+    let properties =
+        ObsSourceRef::get_properties_by_source_id("monitor_capture", context.runtime())?;
     println!("Properties: {:?}", properties);
 
     // Can update the output path to record to a different location
@@ -53,34 +66,22 @@ pub fn main() -> anyhow::Result<()> {
 
     // Update path
     output.update_settings(settings)?;
-    // To get the list of all monitors
-    // It has a loop hole though, somehow the monitor_id returned in property is same if we have multiple monitor of exactly same model (exactly same monitor), use `libobs-window-helper` lib for fix
-    let properties = source.get_properties()?;
-    let mut builder: MonitorCaptureSourceBuilder = context.source_builder("Display name 2")?;
-
-    // Read the monitor_id from the property
-    let prop = properties.get("monitor_id");
-    if let Some(prop) = prop
-        && let ObsProperty::List(list) = prop
-        && !list.items().is_empty()
-        && let ObsListItemValue::String(value) = list.items()[0].value()
-    {
-        builder = builder.set_monitor_id_raw(value.to_string());
-    }
 
     // method 2 is WGC
-    let source = builder
+    let scene_item = context
+        .source_builder::<MonitorCaptureSourceBuilder, _>("Test Monitor Capture 2")?
+        .set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[0])
         .set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
         .add_to_scene(&mut scene)?;
 
     println!("Source added to scene!");
-    let position = scene.get_source_position(&source)?;
+    let position = scene_item.get_source_position()?;
     println!("Position: {:?}", position);
 
-    let scale = scene.get_source_scale(&source)?;
+    let scale = scene_item.get_source_scale()?;
     println!("Scale: {:?}", scale);
 
-    scene.fit_source_to_screen(&source)?;
+    scene_item.fit_source_to_screen()?;
 
     output.start()?;
     replay_output.start()?;

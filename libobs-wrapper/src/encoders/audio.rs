@@ -1,31 +1,33 @@
 use libobs::{audio_output, obs_encoder};
 use std::{
-    borrow::Borrow,
     ptr,
     sync::{Arc, RwLock},
 };
 
 use crate::{
     data::{
-        object::{inner_fn_update_settings, ObsObjectTrait, ObsObjectTraitSealed},
+        object::{inner_fn_update_settings, ObsObjectTrait, ObsObjectTraitPrivate},
         ImmutableObsData, ObsDataPointers,
     },
-    encoders::ObsEncoderTrait,
-    impl_obs_drop, run_with_obs,
+    encoders::{ObsEncoderTrait, _ObsEncoderDropGuard},
+    run_with_obs,
     runtime::ObsRuntime,
-    unsafe_send::Sendable,
+    unsafe_send::{Sendable, SmartPointerSendable},
     utils::{AudioEncoderInfo, ObsError, ObsString},
 };
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
+/// Represents a audio encoder. If this struct is not referenced anywhere anymore,
+/// this Audio Encoder will get removed. Note: The output internally stores the ObsAudioEncoder, once it was
+/// added to the output
 pub struct ObsAudioEncoder {
-    pub(crate) encoder: Sendable<*mut libobs::obs_encoder_t>,
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,
     pub(crate) settings: Arc<RwLock<ImmutableObsData>>,
     pub(crate) hotkey_data: Arc<RwLock<ImmutableObsData>>,
     pub(crate) runtime: ObsRuntime,
+    pub(crate) encoder: SmartPointerSendable<*mut libobs::obs_encoder_t>,
 }
 
 impl ObsAudioEncoder {
@@ -35,55 +37,75 @@ impl ObsAudioEncoder {
         mixer_idx: usize,
         runtime: ObsRuntime,
     ) -> Result<Arc<Self>, ObsError> {
-        let settings_ptr = match info.settings.borrow() {
-            Some(x) => x.as_ptr(),
-            None => Sendable(ptr::null_mut()),
-        };
+        let AudioEncoderInfo {
+            id,
+            name,
+            settings,
+            hotkey_data,
+        } = info;
 
-        let hotkey_data_ptr = match info.hotkey_data.borrow() {
-            Some(x) => x.as_ptr(),
-            None => Sendable(ptr::null_mut()),
-        };
-
-        let id_ptr = info.id.as_ptr();
-        let name_ptr = info.name.as_ptr();
+        let settings_ptr = settings.as_ref().map(|s| s.as_ptr());
+        let hotkey_data_ptr = hotkey_data.as_ref().map(|h| h.as_ptr());
 
         let encoder = run_with_obs!(
             runtime,
-            (hotkey_data_ptr, settings_ptr, id_ptr, name_ptr),
-            move || unsafe {
-                let ptr = libobs::obs_audio_encoder_create(
-                    id_ptr,
-                    name_ptr,
-                    settings_ptr,
-                    mixer_idx,
-                    hotkey_data_ptr,
-                );
-                Sendable(ptr)
-            }
-        )?;
+            (id, name, settings_ptr, hotkey_data_ptr),
+            move || {
+                let settings_ptr_raw = match settings_ptr {
+                    Some(s) => s.get_ptr(),
+                    None => ptr::null_mut(),
+                };
 
-        if encoder.0.is_null() {
-            return Err(ObsError::NullPointer);
-        }
+                let hotkey_data_ptr_raw = match hotkey_data_ptr {
+                    Some(h) => h.get_ptr(),
+                    None => ptr::null_mut(),
+                };
+
+                let ptr = unsafe {
+                    // Safety: All pointers are in the current scope and therefore valid.
+                    libobs::obs_audio_encoder_create(
+                        id.as_ptr().0,
+                        name.as_ptr().0,
+                        settings_ptr_raw,
+                        mixer_idx,
+                        hotkey_data_ptr_raw,
+                    )
+                };
+
+                if ptr.is_null() {
+                    Err(ObsError::NullPointer(None))
+                } else {
+                    Ok(Sendable(ptr))
+                }
+            }
+        )??;
+
+        let encoder = SmartPointerSendable::new(
+            encoder.0,
+            Arc::new(_ObsEncoderDropGuard {
+                encoder,
+                runtime: runtime.clone(),
+            }),
+        );
 
         let settings = {
             let settings_ptr = run_with_obs!(runtime, (encoder), move || unsafe {
-                Sendable(libobs::obs_encoder_get_settings(encoder))
+                // Safety: We are using a smart pointer to ensure that the encoder pointer is valid
+                Sendable(libobs::obs_encoder_get_settings(encoder.get_ptr()))
             })?;
 
-            ImmutableObsData::from_raw(settings_ptr, runtime.clone())
+            ImmutableObsData::from_raw_pointer(settings_ptr, runtime.clone())
         };
 
-        let hotkey_data = match info.hotkey_data.borrow() {
-            Some(h) => h.clone(),
+        let hotkey_data = match hotkey_data {
+            Some(h) => h,
             None => ImmutableObsData::new(&runtime)?,
         };
 
         Ok(Arc::new(Self {
             encoder,
-            id: info.id,
-            name: info.name,
+            id,
+            name,
             settings: Arc::new(RwLock::new(settings)),
             hotkey_data: Arc::new(RwLock::new(hotkey_data)),
             runtime,
@@ -91,23 +113,24 @@ impl ObsAudioEncoder {
     }
 
     /// This is only needed once for global audio context
-    pub fn set_audio_context(
+    /// # Safety
+    /// You must ensure that the `handler` pointer is valid and lives as long as this function call.
+    pub unsafe fn set_audio_context(
         &mut self,
         handler: Sendable<*mut audio_output>,
     ) -> Result<(), ObsError> {
         let encoder_ptr = self.encoder.clone();
 
-        run_with_obs!(self.runtime, (handler, encoder_ptr), move || unsafe {
-            libobs::obs_encoder_set_audio(encoder_ptr, handler)
+        run_with_obs!(self.runtime, (handler, encoder_ptr), move || {
+            unsafe {
+                // Safety: Caller made sure that handler is valid and encoder_ptr is valid because of a SmartPointer
+                libobs::obs_encoder_set_audio(encoder_ptr.get_ptr(), handler.0)
+            }
         })
     }
 }
 
-impl_obs_drop!(ObsAudioEncoder, (encoder), move || unsafe {
-    libobs::obs_encoder_release(encoder);
-});
-
-impl ObsObjectTraitSealed for ObsAudioEncoder {
+impl ObsObjectTraitPrivate for ObsAudioEncoder {
     fn __internal_replace_settings(&self, settings: ImmutableObsData) -> Result<(), ObsError> {
         self.settings
             .write()
@@ -138,7 +161,7 @@ impl ObsObjectTraitSealed for ObsAudioEncoder {
     }
 }
 
-impl ObsObjectTrait for ObsAudioEncoder {
+impl ObsObjectTrait<*mut libobs::obs_encoder> for ObsAudioEncoder {
     fn runtime(&self) -> &ObsRuntime {
         &self.runtime
     }
@@ -178,10 +201,10 @@ impl ObsObjectTrait for ObsAudioEncoder {
 
         inner_fn_update_settings!(self, libobs::obs_encoder_update, settings)
     }
-}
 
-impl ObsEncoderTrait for ObsAudioEncoder {
-    fn as_ptr(&self) -> Sendable<*mut obs_encoder> {
+    fn as_ptr(&self) -> SmartPointerSendable<*mut obs_encoder> {
         self.encoder.clone()
     }
 }
+
+impl ObsEncoderTrait for ObsAudioEncoder {}
