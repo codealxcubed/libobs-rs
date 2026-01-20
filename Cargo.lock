@@ -1921,6 +1921,7 @@ name = "libobs-wrapper"
 version = "9.0.4+32.0.2"
 dependencies = [
  "arboard",
+ "bitflags 2.10.0",
  "chrono",
  "colored 3.0.0",
  "dialog",

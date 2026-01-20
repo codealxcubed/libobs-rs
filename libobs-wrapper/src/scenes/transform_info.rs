@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use libobs::obs_transform_info;
 
 use crate::{
-    enums::{ObsBoundsType, OsEnumType},
+    enums::{ObsAlignment, ObsBoundsType, OsEnumType},
     graphics::Vec2,
     macros::enum_from_number,
     scenes::scene_item::SceneItemTrait,
@@ -117,9 +117,9 @@ impl ObsTransformInfoBuilder {
         self
     }
 
-    /// Use alignment constants like so: `obs_alignment::LEFT | obs_alignment::TOP`
-    pub fn set_alignment(mut self, alignment: u32) -> Self {
-        self.alignment = Some(alignment);
+    /// Use alignment constants like so: `ObsAlignment::LEFT | ObsAlignment::TOP`
+    pub fn set_alignment(mut self, alignment: ObsAlignment) -> Self {
+        self.alignment = Some(alignment.bits());
         self
     }
 
@@ -138,9 +138,9 @@ impl ObsTransformInfoBuilder {
         self
     }
 
-    /// Use alignment constants like so: `obs_alignment::LEFT | obs_alignment::TOP`
-    pub fn set_bounds_alignment(mut self, bounds_alignment: u32) -> Self {
-        self.bounds_alignment = Some(bounds_alignment);
+    /// Use alignment constants like so: `ObsAlignment::LEFT | ObsAlignment::TOP`
+    pub fn set_bounds_alignment(mut self, bounds_alignment: ObsAlignment) -> Self {
+        self.bounds_alignment = Some(bounds_alignment.bits());
         self
     }
 
