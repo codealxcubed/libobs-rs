@@ -9,6 +9,7 @@
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
+pub mod audio;
 pub mod context;
 pub mod crash_handler;
 pub mod data;
