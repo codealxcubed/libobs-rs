@@ -171,8 +171,6 @@ unsafe impl Sync for ObsFader {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_fader_creation() {
         // This is a basic compile-time test

@@ -136,8 +136,6 @@ unsafe impl Sync for ObsVolmeter {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_volmeter_creation() {
         // This is a basic compile-time test
