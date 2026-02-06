@@ -47,6 +47,9 @@ impl From<ObsFaderType> for u32 {
 ///
 /// // Get the multiplier value for mixing
 /// let mul = fader.get_mul();
+///
+/// // Attach to a source (requires initialized OBS context and source)
+/// // fader.attach_source(&source);
 /// # Ok::<(), libobs_wrapper::utils::ObsError>(())
 /// ```
 pub struct ObsFader {
