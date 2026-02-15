@@ -46,6 +46,7 @@ use std::{
 #[cfg(target_os = "linux")]
 use crate::utils::initialization::PlatformType;
 use crate::{
+    audio::{ObsFader, ObsFaderType, ObsVolmeter},
     data::{
         object::ObsObjectTrait,
         output::{ObsOutputTrait, ObsOutputTraitSealed, ObsReplayBufferOutputRef},
@@ -630,5 +631,67 @@ impl ObsContext {
         name: K,
     ) -> Result<T, ObsError> {
         T::new(name.into(), self.runtime.clone())
+    }
+
+    /// Creates a new audio fader with the specified type.
+    ///
+    /// A fader is used to map input values from UI controls to dB and multiplier values
+    /// that libobs uses to mix audio.
+    ///
+    /// # Arguments
+    /// * `fader_type` - The type of fader curve to use (Cubic, IEC, or Log)
+    ///
+    /// # Returns
+    /// A Result containing the new ObsFader or an error
+    ///
+    /// # Example
+    /// ```no_run
+    /// use libobs_wrapper::audio::ObsFaderType;
+    /// use libobs_wrapper::context::ObsContext;
+    /// use libobs_wrapper::utils::StartupInfo;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let info = StartupInfo::default();
+    /// let context = ObsContext::new(info)?;
+    ///
+    /// // Create a cubic fader
+    /// let fader = context.fader(ObsFaderType::Cubic)?;
+    /// fader.set_db(-6.0);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn fader(&self, fader_type: ObsFaderType) -> Result<ObsFader, ObsError> {
+        ObsFader::new(fader_type, self.runtime.clone())
+    }
+
+    /// Creates a new volume meter (volmeter) with the specified fader type for level mapping.
+    ///
+    /// A volume meter monitors audio levels from a source and prepares the data
+    /// for display in a GUI, automatically taking source volume into account.
+    ///
+    /// # Arguments
+    /// * `fader_type` - The fader type to use for mapping levels to display values
+    ///
+    /// # Returns
+    /// A Result containing the new ObsVolmeter or an error
+    ///
+    /// # Example
+    /// ```no_run
+    /// use libobs_wrapper::audio::{ObsFaderType, ObsPeakMeterType};
+    /// use libobs_wrapper::context::ObsContext;
+    /// use libobs_wrapper::utils::StartupInfo;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let info = StartupInfo::default();
+    /// let context = ObsContext::new(info)?;
+    ///
+    /// // Create a volume meter with IEC fader mapping
+    /// let volmeter = context.volmeter(ObsFaderType::IEC)?;
+    /// volmeter.set_peak_meter_type(ObsPeakMeterType::TruePeak);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn volmeter(&self, fader_type: ObsFaderType) -> Result<ObsVolmeter, ObsError> {
+        ObsVolmeter::new(fader_type, self.runtime.clone())
     }
 }

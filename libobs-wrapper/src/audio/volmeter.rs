@@ -3,7 +3,11 @@
 //! A volume meter monitors audio levels from a source and prepares the data
 //! for display in a GUI, automatically taking source volume into account.
 
-use crate::{data::object::ObsObjectTrait, sources::ObsSourceRef, utils::ObsError};
+use crate::{
+    data::object::ObsObjectTrait, impl_obs_drop, run_with_obs, runtime::ObsRuntime,
+    sources::ObsSourceRef, unsafe_send::Sendable, utils::ObsError,
+};
+use std::sync::Arc;
 
 /// Type of peak meter to use for level measurement.
 #[repr(u32)]
@@ -34,46 +38,77 @@ pub const MAX_AUDIO_CHANNELS: usize = libobs::MAX_AUDIO_CHANNELS as usize;
 /// providing magnitude, peak, and input peak values for each channel.
 /// It automatically maps levels to the range [0.0, 1.0] for GUI display.
 ///
+/// This struct is a smart pointer that can be cloned and is thread-safe.
+/// It must be created via [`crate::context::ObsContext::volmeter()`].
+///
 /// # Example
 /// ```no_run
-/// use libobs_wrapper::audio::{ObsVolmeter, ObsPeakMeterType};
-/// use libobs_wrapper::audio::ObsFaderType;
+/// use libobs_wrapper::audio::{ObsPeakMeterType, ObsFaderType};
+/// use libobs_wrapper::context::ObsContext;
+/// use libobs_wrapper::utils::StartupInfo;
 ///
-/// // Create a volume meter with IEC fader mapping
-/// let volmeter = ObsVolmeter::new(ObsFaderType::IEC)?;
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let info = StartupInfo::default();
+/// let context = ObsContext::new(info)?;
+///
+/// // Create a volume meter with IEC fader mapping via the context
+/// let volmeter = context.volmeter(ObsFaderType::IEC)?;
 ///
 /// // Set to use true peak metering for accuracy
 /// volmeter.set_peak_meter_type(ObsPeakMeterType::TruePeak);
 ///
-/// // Attach to a source (requires ObsSourceRef)
-/// // volmeter.attach_source(&source);
-///
 /// // Get number of channels
 /// let channels = volmeter.get_nr_channels();
-/// # Ok::<(), libobs_wrapper::utils::ObsError>(())
+///
+/// // The volmeter can be cloned
+/// let volmeter_clone = volmeter.clone();
+/// # Ok(())
+/// # }
 /// ```
+#[derive(Debug, Clone)]
 pub struct ObsVolmeter {
-    inner: *mut libobs::obs_volmeter_t,
+    inner: Arc<ObsVolmeterInner>,
+}
+
+#[derive(Debug)]
+struct ObsVolmeterInner {
+    runtime: ObsRuntime,
+    volmeter: Sendable<*mut libobs::obs_volmeter_t>,
 }
 
 impl ObsVolmeter {
     /// Creates a new volume meter with the specified fader type for level mapping.
     ///
+    /// This is internal - users should create volmeters via `ObsContext::volmeter()`.
+    ///
     /// # Arguments
     /// * `fader_type` - The fader type to use for mapping levels to display values
+    /// * `runtime` - The OBS runtime instance
     ///
     /// # Returns
     /// A new `ObsVolmeter` instance, or an error if creation failed
-    pub fn new(fader_type: crate::audio::ObsFaderType) -> Result<Self, ObsError> {
-        let inner = unsafe { libobs::obs_volmeter_create(fader_type as u32) };
+    pub(crate) fn new(
+        fader_type: crate::audio::ObsFaderType,
+        runtime: ObsRuntime,
+    ) -> Result<Self, ObsError> {
+        let fader_type_val = fader_type as u32;
 
-        if inner.is_null() {
+        let volmeter_ptr = run_with_obs!(runtime, move || unsafe {
+            Sendable(libobs::obs_volmeter_create(fader_type_val))
+        })?;
+
+        if volmeter_ptr.0.is_null() {
             return Err(ObsError::NullPointer(Some(
                 "Failed to create volmeter".to_string(),
             )));
         }
 
-        Ok(Self { inner })
+        Ok(Self {
+            inner: Arc::new(ObsVolmeterInner {
+                runtime,
+                volmeter: volmeter_ptr,
+            }),
+        })
     }
 
     /// Attaches the volume meter to a source.
@@ -87,12 +122,14 @@ impl ObsVolmeter {
     /// # Returns
     /// `true` if attachment succeeded, `false` otherwise
     pub fn attach_source(&self, source: &ObsSourceRef) -> bool {
-        unsafe { libobs::obs_volmeter_attach_source(self.inner, source.as_ptr().get_ptr()) }
+        unsafe {
+            libobs::obs_volmeter_attach_source(self.inner.volmeter.0, source.as_ptr().get_ptr())
+        }
     }
 
     /// Detaches the volume meter from its currently attached source.
     pub fn detach_source(&self) {
-        unsafe { libobs::obs_volmeter_detach_source(self.inner) }
+        unsafe { libobs::obs_volmeter_detach_source(self.inner.volmeter.0) }
     }
 
     /// Sets the peak meter type.
@@ -100,7 +137,9 @@ impl ObsVolmeter {
     /// # Arguments
     /// * `peak_meter_type` - The type of peak metering to use
     pub fn set_peak_meter_type(&self, peak_meter_type: ObsPeakMeterType) {
-        unsafe { libobs::obs_volmeter_set_peak_meter_type(self.inner, peak_meter_type as u32) }
+        unsafe {
+            libobs::obs_volmeter_set_peak_meter_type(self.inner.volmeter.0, peak_meter_type as u32)
+        }
     }
 
     /// Gets the number of audio channels configured for the attached source.
@@ -108,7 +147,7 @@ impl ObsVolmeter {
     /// # Returns
     /// The number of channels, or 0 if no source is attached
     pub fn get_nr_channels(&self) -> i32 {
-        unsafe { libobs::obs_volmeter_get_nr_channels(self.inner) }
+        unsafe { libobs::obs_volmeter_get_nr_channels(self.inner.volmeter.0) }
     }
 
     /// Returns the raw pointer to the volmeter.
@@ -116,23 +155,15 @@ impl ObsVolmeter {
     /// # Safety
     /// The caller must ensure the pointer is used safely and doesn't outlive the volmeter.
     pub fn as_ptr(&self) -> *mut libobs::obs_volmeter_t {
-        self.inner
+        self.inner.volmeter.0
     }
 }
 
-impl Drop for ObsVolmeter {
-    fn drop(&mut self) {
-        if !self.inner.is_null() {
-            unsafe {
-                libobs::obs_volmeter_destroy(self.inner);
-            }
-        }
+impl_obs_drop!(ObsVolmeterInner, (volmeter), move || {
+    unsafe {
+        libobs::obs_volmeter_destroy(volmeter.0);
     }
-}
-
-// Volume meters are thread-safe according to libobs design
-unsafe impl Send for ObsVolmeter {}
-unsafe impl Sync for ObsVolmeter {}
+});
 
 #[cfg(test)]
 mod tests {
