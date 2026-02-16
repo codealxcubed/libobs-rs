@@ -124,6 +124,25 @@ pub enum HardwareCodec {
     AV1,
 }
 
+/// Video rate control mode
+#[derive(Debug, Clone, Copy, Default)]
+pub enum RateControl {
+    /// Constant Bitrate — uses `video_bitrate` as the fixed bitrate
+    #[default]
+    CBR,
+    /// Variable Bitrate — uses `video_bitrate` as target, `max_bitrate` as ceiling.
+    /// Produces smaller files for static content (e.g., terminal recordings).
+    VBR {
+        /// Maximum bitrate in Kbps (peak)
+        max_bitrate: u32,
+    },
+    /// Constant Quantization Parameter — fixed quality regardless of bitrate
+    CQP {
+        /// Quantization parameter (lower = higher quality, 0-51 for H.264/H.265)
+        cq_level: u32,
+    },
+}
+
 /// Audio encoder configuration
 #[derive(Debug, Clone)]
 pub enum AudioEncoder {
@@ -165,6 +184,7 @@ pub struct OutputSettings {
     name: ObsString,
     video_bitrate: u32,
     audio_bitrate: u32,
+    rate_control: RateControl,
     video_encoder: VideoEncoder,
     audio_encoder: AudioEncoder,
     custom_encoder_settings: Option<String>,
@@ -234,6 +254,12 @@ impl OutputSettings {
         self.audio_encoder = encoder;
         self
     }
+
+    /// Sets the video rate control mode (CBR, VBR, or CQP).
+    pub fn with_rate_control(mut self, rate_control: RateControl) -> Self {
+        self.rate_control = rate_control;
+        self
+    }
 }
 
 #[derive(Debug)]
@@ -271,6 +297,7 @@ impl SimpleOutputBuilder {
             settings: OutputSettings {
                 video_bitrate: 6000,
                 audio_bitrate: 160,
+                rate_control: RateControl::default(),
                 video_encoder: VideoEncoder::X264(X264Preset::VeryFast),
                 audio_encoder: AudioEncoder::AAC,
                 custom_encoder_settings: None,
@@ -322,6 +349,12 @@ impl SimpleOutputBuilder {
     /// Sets the video encoder to a generic hardware encoder.
     pub fn hardware_encoder(mut self, codec: HardwareCodec, preset: HardwarePreset) -> Self {
         self.settings.video_encoder = VideoEncoder::Hardware { codec, preset };
+        self
+    }
+
+    /// Sets the video rate control mode (CBR, VBR, or CQP).
+    pub fn rate_control(mut self, rate_control: RateControl) -> Self {
+        self.settings.rate_control = rate_control;
         self
     }
 
@@ -457,9 +490,22 @@ impl SimpleOutputBuilder {
     }
 
     fn configure_video_encoder(&self, settings: &mut ObsData) -> Result<(), ObsError> {
-        // Set rate control to CBR
-        settings.set_string("rate_control", "CBR")?;
-        settings.set_int("bitrate", self.settings.video_bitrate as i64)?;
+        // Configure rate control mode
+        match self.settings.rate_control {
+            RateControl::CBR => {
+                settings.set_string("rate_control", "CBR")?;
+                settings.set_int("bitrate", self.settings.video_bitrate as i64)?;
+            }
+            RateControl::VBR { max_bitrate } => {
+                settings.set_string("rate_control", "VBR")?;
+                settings.set_int("bitrate", self.settings.video_bitrate as i64)?;
+                settings.set_int("max_bitrate", max_bitrate as i64)?;
+            }
+            RateControl::CQP { cq_level } => {
+                settings.set_string("rate_control", "CQP")?;
+                settings.set_int("cqp", cq_level as i64)?;
+            }
+        }
 
         // Set preset if available
         if let Some(preset) = self.get_encoder_preset(&self.settings.video_encoder) {
